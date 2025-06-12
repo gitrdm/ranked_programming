@@ -3,39 +3,39 @@ Edge case and output expectation tests for the lazy API (LazyRanking and lazy co
 Covers empty/failure input, normalization, deduplication, order, flattening, and type consistency.
 """
 import pytest
-from ranked_programming.rp_core import LazyRanking, lazy_nrm_exc, lazy_rlet, lazy_rlet_star, lazy_either_of, lazy_observe, lazy_limit, lazy_cut
+from ranked_programming.rp_core import Ranking, nrm_exc, rlet, rlet_star, either_of, observe, limit, cut, pr_all, pr_first
 
-def test_lazy_nrm_exc_empty():
+def test_nrm_exc_empty():
     # Both values empty: yields nothing
     def empty():
         if False:
             yield (None, 0)
-    ranking = LazyRanking(lambda: lazy_nrm_exc(empty(), empty(), 1))
+    ranking = Ranking(lambda: nrm_exc(empty(), empty(), 1))
     assert ranking.to_eager() == []
 
-def test_lazy_rlet_empty():
+def test_rlet_empty():
     # Any empty binding yields nothing
     def gen():
         if False:
             yield (1, 0)
-    ranking = LazyRanking(lambda: lazy_rlet([
+    ranking = Ranking(lambda: rlet([
         ('x', gen),
         ('y', lambda: ((2, 0),))
     ], lambda x, y: (x, y)))
     assert ranking.to_eager() == []
 
-def test_lazy_rlet_star_empty():
+def test_rlet_star_empty():
     # Any empty binding yields nothing
     def gen():
         if False:
             yield (1, 0)
-    ranking = LazyRanking(lambda: lazy_rlet_star([
+    ranking = Ranking(lambda: rlet_star([
         ('x', gen),
         ('y', lambda x: ((x+1, 0),))
     ], lambda x, y: (x, y)))
     assert ranking.to_eager() == []
 
-def test_lazy_either_of_duplicates():
+def test_either_of_duplicates():
     # Duplicate values: lowest rank wins
     def g1():
         yield ('A', 2)
@@ -43,47 +43,47 @@ def test_lazy_either_of_duplicates():
     def g2():
         yield ('A', 0)
         yield ('C', 3)
-    ranking = LazyRanking(lambda: lazy_either_of(LazyRanking(g1), LazyRanking(g2)))
+    ranking = Ranking(lambda: either_of(Ranking(g1), Ranking(g2)))
     result = dict(ranking.to_eager())
     assert result['A'] == 0
     assert result['B'] == 1
     assert result['C'] == 3
 
-def test_lazy_observe_normalizes():
+def test_observe_normalizes():
     # After filtering, ranks are normalized
     def g():
         yield (1, 2)
         yield (2, 4)
         yield (3, 7)
-    ranking = LazyRanking(g)
-    filtered = LazyRanking(lambda: lazy_observe(lambda x: x > 1, ranking))
+    ranking = Ranking(g)
+    filtered = Ranking(lambda: observe(lambda x: x > 1, ranking))
     result = filtered.to_eager()
     assert min(r for _, r in result) == 0
 
-def test_lazy_limit_empty():
+def test_limit_empty():
     # Limit on empty yields nothing
     def g():
         if False:
             yield (1, 0)
-    ranking = LazyRanking(g)
-    limited = LazyRanking(lambda: lazy_limit(3, ranking))
+    ranking = Ranking(g)
+    limited = Ranking(lambda: limit(3, ranking))
     assert limited.to_eager() == []
 
-def test_lazy_cut_empty():
+def test_cut_empty():
     # Cut on empty yields nothing
     def g():
         if False:
             yield (1, 0)
-    ranking = LazyRanking(g)
-    cut = LazyRanking(lambda: lazy_cut(2, ranking))
-    assert cut.to_eager() == []
+    ranking = Ranking(g)
+    cut_r = Ranking(lambda: cut(2, ranking))
+    assert cut_r.to_eager() == []
 
 def test_lazy_flattening_type():
     # All combinators should yield only (value, rank) pairs, never nested LazyRanking or generator
     def g():
         yield (10, 0)
         yield (20, 1)
-    ranking = LazyRanking(lambda: lazy_nrm_exc(1, LazyRanking(g), 2))
+    ranking = Ranking(lambda: nrm_exc(1, Ranking(g), 2))
     for v, r in ranking:
         assert not hasattr(v, '__iter__') or isinstance(v, (str, int, float))
         assert isinstance(r, int)
@@ -94,8 +94,47 @@ def test_lazy_order_preservation():
         yield (1, 2)
         yield (2, 1)
         yield (3, 0)
-    ranking = LazyRanking(g)
+    ranking = Ranking(g)
     result = sorted(ranking.to_eager(), key=lambda x: x[1])
     # Should be sorted by rank
     ranks = [r for _, r in result]
     assert ranks == sorted(ranks)
+
+def test_pr_all_and_pr_first(capsys):
+    from ranked_programming.rp_core import pr_all, pr_first, Ranking
+    def gen():
+        yield ("foo", 0)
+        yield ("bar", 1)
+    ranking = Ranking(gen)
+    pr_all(ranking)
+    out = capsys.readouterr().out
+    assert "foo" in out and "bar" in out and "Rank" in out
+    pr_first(ranking)
+    out = capsys.readouterr().out
+    assert "foo" in out or "bar" in out
+    # Empty ranking prints failure message
+    empty = Ranking(lambda: iter([]))
+    pr_all(empty)
+    out = capsys.readouterr().out
+    assert "Failure" in out
+    pr_first(empty)
+    out = capsys.readouterr().out
+    assert "Failure" in out
+
+def test_invalid_input():
+    from ranked_programming.rp_core import Ranking, nrm_exc
+    # Invalid: passing a string as a generator should yield the string as a value
+    ranking = Ranking(lambda: nrm_exc("foo", "bar", 1))
+    result = ranking.to_eager()
+    assert ("foo", 0) in result and ("bar", 1) in result
+    # Invalid: passing a dict as a generator should yield the dict as a value
+    d = {"a": 1}
+    ranking = Ranking(lambda: nrm_exc(d, d, 1))
+    result = ranking.to_eager()
+    assert (d, 0) in result and (d, 1) in result
+    # Invalid: passing a non-iterable, non-callable object should yield it as a value
+    class Dummy: pass
+    dummy = Dummy()
+    ranking = Ranking(lambda: nrm_exc(dummy, dummy, 1))
+    result = ranking.to_eager()
+    assert (dummy, 0) in result and (dummy, 1) in result
