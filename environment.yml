@@ -1,0 +1,14 @@
+name: ranked-programming
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pytest
+  - mypy
+  - black
+  - isort
+  - sphinx
+  - pip:
+      - .

@@ -1,0 +1,70 @@
+# Ranked Programming (Python Port)
+
+A Python library for ranked programming, ported from the canonical Racket library. Provides combinators, macros, and utilities for reasoning about uncertainty, surprise, and ranked choices in computation.
+
+## Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/ranked-programming.git
+   cd ranked-programming/python
+   ```
+2. **Install dependencies (recommended: use conda):**
+   ```bash
+   conda env create -f environment.yml
+   conda activate ranked-programming-py
+   ```
+   Or with pip:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Install the package (editable mode):**
+   ```bash
+   pip install -e .
+   ```
+
+## Usage
+
+Import the API in your Python code:
+
+```python
+from ranked_programming import rp_api as rp
+
+r = rp.construct_ranking((1, 0), (2, 1))
+print(r)
+```
+
+## Examples
+
+See the `python/examples/` directory for full scripts that duplicate the Racket examples:
+
+- `boolean_circuit.py` — Boolean circuit with uncertainty
+- `ranked_let.py` — Independent and dependent uncertainty with `rlet` and `rlet_star`
+- `ranked_procedure_call.py` — Uncertain function application
+- `spelling_correction.py` — Spelling correction with ranked choices
+- `hidden_markov.py` — Simple hidden Markov model
+- `localisation.py` — Robot localisation
+- `recursion.py` — Recursion with ranked choices
+- `ranking_network.py` — Simple ranking network
+- `google_10000_english_no_swears.py` — Large vocabulary demo (mocked)
+
+Run an example:
+```bash
+python examples/boolean_circuit.py
+```
+
+## Documentation
+
+- All API functions and combinators are documented with literate docstrings.
+- See `python/docs/index.md` for a full API reference and usage guide.
+
+## Testing
+
+Run all tests with:
+```bash
+pytest
+```
+
+## License
+
+See [LICENSE](../LICENSE).
