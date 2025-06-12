@@ -1,6 +1,14 @@
 """
 Example: Spelling Correction (Python port)
-Demonstrates ranked programming for spelling correction using ranked choices.
+
+This example demonstrates ranked programming for spelling correction using ranked choices.
+
+- The goal is to correct the word 'hte' (intended: 'the').
+- Possible corrections: 'the' (normal), 'hat', 'hit', 'hot', 'hoe' (exceptional, grouped).
+- nrm_exc and either_of are used to model the ranking of corrections.
+- The output is a ranking of possible corrections, ranked by plausibility.
+
+Run this file to see the ranked output for the spelling correction scenario.
 """
 from ranked_programming.rp_api import nrm_exc, either_of, pr_all
 

@@ -1,6 +1,14 @@
 """
 Example: Ranked Procedure Call (Python port)
-Demonstrates ranked_apply for uncertain function application.
+
+This example demonstrates ranked_apply for uncertain function application.
+
+- The operation (op) is uncertain: normally addition, exceptionally multiplication.
+- The argument (arg) is uncertain: normally 10, exceptionally 20.
+- rlet_star is used to apply the uncertain operation to the uncertain argument.
+- The output is a ranking of all possible results, ranked by plausibility.
+
+Run this file to see the ranked output for the uncertain procedure call.
 """
 from ranked_programming.rp_api import nrm_exc, rlet_star, pr_all
 

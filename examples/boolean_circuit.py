@@ -1,6 +1,14 @@
 """
 Example: Boolean Circuit (Python port)
+
 This example demonstrates ranked programming for a simple boolean circuit, analogous to the Racket example.
+
+- Each input (a, b, c) is a ranked boolean: normally True, exceptionally False (rank 1).
+- The circuit computes (a and b) or c, propagating uncertainty through the logic.
+- Uses rlet to combine uncertainty across all variables.
+- The output is a ranking of all possible circuit outputs, ranked by plausibility.
+
+Run this file to see the ranked output for the boolean circuit.
 """
 from ranked_programming.rp_api import construct_ranking, nrm_exc, rlet, observe, pr_all
 

@@ -1,6 +1,13 @@
 """
 Example: Ranked Let (Python port)
-Demonstrates the use of rlet and rlet_star for dependent and independent uncertainty.
+
+This example demonstrates the use of rlet and rlet_star for modeling independent and dependent uncertainty.
+
+- Independent uncertainty: beer and peanuts are chosen independently, each with their own ranking.
+- Dependent uncertainty: peanut consumption depends on whether beer is consumed, modeled with rlet_star.
+- The output shows how uncertainty propagates through both independent and dependent choices.
+
+Run this file to see the ranked outputs for both independent and dependent uncertainty scenarios.
 """
 from ranked_programming.rp_api import nrm_exc, rlet, rlet_star, pr_all
 

@@ -1,6 +1,15 @@
 """
 Example: Hidden Markov Model (Python port)
-Demonstrates ranked programming for a simple HMM with two states.
+
+This example demonstrates ranked programming for a simple Hidden Markov Model (HMM) with two states.
+
+- States: S0 (normal), S1 (exceptional).
+- Transitions: normally stay in the same state, exceptionally switch (using nrm_exc).
+- Emissions: each state emits a symbol, with normal and exceptional outcomes.
+- rlet_star is used to model the sequence of states and emissions, propagating uncertainty through time.
+- The output is a ranking of all possible (s0, s1, e0, e1) tuples, ranked by plausibility.
+
+Run this file to see the ranked output for the HMM scenario.
 """
 from ranked_programming.rp_api import nrm_exc, rlet_star, pr_all
 

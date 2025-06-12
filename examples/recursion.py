@@ -1,6 +1,13 @@
 """
 Example: Recursion (Python port)
-Demonstrates ranked programming with recursion and ranked choices.
+
+This example demonstrates ranked programming with recursion and ranked choices.
+
+- The recur function: normally returns x, exceptionally recurses on x*2 (until x > 500).
+- The observe combinator is used to filter for values greater than 500.
+- The output is a ranking of all possible values > 500, ranked by plausibility (number of recursions).
+
+Run this file to see the ranked output for the recursive scenario.
 """
 from ranked_programming.rp_api import nrm_exc, observe, pr_all
 

@@ -1,6 +1,16 @@
 """
 Example: Robot Localisation (Python port)
-Demonstrates ranked programming for a simple robot localisation problem.
+
+This example demonstrates ranked programming for a simple robot localisation problem.
+
+- The robot can be in one of three locations: A, B, or C.
+- Initial belief: normally at A, exceptionally at B or C (using nested nrm_exc).
+- The robot moves: normally stays, exceptionally moves to the next location.
+- The sensor: normally correct, exceptionally reports 'unknown'.
+- rlet_star is used to model the sequence of states and observations, propagating uncertainty.
+- The output is a ranking of all possible (l0, l1, s1) tuples, ranked by plausibility.
+
+Run this file to see the ranked output for the robot localisation scenario.
 """
 from ranked_programming.rp_api import nrm_exc, rlet_star, pr_all
 
