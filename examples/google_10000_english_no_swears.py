@@ -10,12 +10,13 @@ This example demonstrates ranked programming with a large vocabulary (mocked for
 
 Run this file to see the ranked output for the demo vocabulary.
 """
-from ranked_programming.rp_api import either_of, pr_all
+from ranked_programming.rp_api import either_of, pr_all, Ranking
 
 def google_10000_example():
     # For demo, use a small subset
     words = ['apple', 'banana', 'cherry', 'date', 'elderberry']
-    ranking = either_of(*words)
+    # Use either_of on a list of Ranking objects, each yielding (word, 0)
+    ranking = either_of(*(Ranking(lambda w=w: [(w, 0)]) for w in words))
     print("Google 10000 English No Swears output ranking:")
     pr_all(ranking)
 
