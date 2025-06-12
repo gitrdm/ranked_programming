@@ -81,6 +81,22 @@ Run an example:
 python examples/boolean_circuit.py
 ```
 
+## Running All Examples
+
+You can run all example scripts at once using the provided `run_examples.sh` script:
+
+```bash
+./run_examples.sh
+```
+
+To run a specific example, pass the filename as an argument:
+
+```bash
+./run_examples.sh boolean_circuit.py
+```
+
+This will execute the example(s) and print their output in order.
+
 ## Documentation
 
 - All API functions and combinators are documented with literate docstrings.
