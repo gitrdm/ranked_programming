@@ -19,14 +19,35 @@ def boolean_circuit():
     b = Ranking(lambda: nrm_exc(True, False, 1))
     c = Ranking(lambda: nrm_exc(True, False, 1))
     def circuit(a, b, c):
-        return (a and b) or c
+        result = (a, b, c, (a and b) or c)
+        return (result,)
     ranking = Ranking(lambda: rlet([
         ('a', a),
         ('b', b),
         ('c', c)
     ], circuit))
-    print("Boolean circuit output ranking:")
-    pr_all(ranking)
+    print("Boolean circuit output ranking (inputs and output):")
+    print("Rank  (a, b, c, output)")
+    print("------------------------")
+    debug_results = list(ranking)
+    for (tup, rank) in debug_results:
+        a, b, c, output = tup
+        print(f"{rank:>4} ({a!r}, {b!r}, {c!r}, {output!r})")
+    print("Done")
 
 if __name__ == "__main__":
     boolean_circuit()
+"""
+Boolean circuit output ranking (inputs and output):
+Rank  (a, b, c, output)
+------------------------
+    0 (True, True, True, True)
+    1 (True, True, True, True)
+    1 (True, True, True, True)
+    2 (False, False, False, False)
+    1 (True, True, True, True)
+    2 (False, False, False, False)
+    2 (True, True, True, True)
+    3 (False, False, False, False)
+Done
+"""
