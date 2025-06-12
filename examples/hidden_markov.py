@@ -1,37 +1,57 @@
 """
 Literate Example: Hidden Markov Model (Python)
 
-This example demonstrates ranked programming for a simple Hidden Markov Model (HMM) with two states.
+This example demonstrates ranked programming for a simple Hidden Markov Model (HMM) with two states, matching the Racket version.
 
-- States: S0 (normal), S1 (exceptional).
-- Transitions: normally stay in the same state, exceptionally switch (using nrm_exc).
-- Emissions: each state emits a symbol, with normal and exceptional outcomes.
-- rlet_star is used to model the sequence of states and emissions, propagating uncertainty through time.
-- The output is a ranking of all possible (s0, s1, e0, e1) tuples, ranked by plausibility.
-
-Note: All combinators yield only (value, rank) pairs as expected; no manual flattening is needed.
+- States: 'rainy', 'sunny'.
+- Transitions: normally stay in the same state, exceptionally switch (using nrm_exc, rank 2).
+- Emissions: each state emits a symbol, with normal and exceptional outcomes (using nrm_exc, rank 1).
+- Recursively builds a sequence of states and emissions, conditioning on observations.
+- The output is a ranking of all possible state sequences, ranked by plausibility.
 
 Run this file to see the ranked output for the HMM scenario.
 """
-from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star, pr_all
+from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star, observe, pr_all
 
-def hmm_example():
-    # States: S0 (normal), S1 (exceptional)
-    def transition(prev):
-        return Ranking(lambda: nrm_exc('S0', 'S1', 1)) if prev == 'S0' else Ranking(lambda: nrm_exc('S1', 'S0', 1))
-    def emission(state):
-        return Ranking(lambda: nrm_exc('A', 'B', 1)) if state == 'S0' else Ranking(lambda: nrm_exc('B', 'A', 1))
-    # Initial state
-    s0 = Ranking(lambda: nrm_exc('S0', 'S1', 1))
-    # rlet_star for sequence: s0, s1, e0, e1 (no flattening needed)
-    ranking = Ranking(lambda: rlet_star([
-        ('s0', s0),
-        ('s1', transition),
-        ('e0', lambda s0, s1: emission(s0)),
-        ('e1', lambda s0, s1, e0: emission(s1)),
-    ], lambda s0, s1, e0, e1: (s0, s1, e0, e1)))
-    print("Hidden Markov Model output ranking:")
+def init():
+    return Ranking(lambda: nrm_exc('rainy', 'sunny', 0))
+
+def trans(s):
+    if s == 'rainy':
+        return Ranking(lambda: nrm_exc('rainy', 'sunny', 2))
+    else:
+        return Ranking(lambda: nrm_exc('sunny', 'rainy', 2))
+
+def emit(s):
+    if s == 'rainy':
+        return Ranking(lambda: nrm_exc('yes', 'no', 1))
+    else:
+        return Ranking(lambda: nrm_exc('no', 'yes', 1))
+
+def hmm(obs):
+    def helper(seq, rank, obs):
+        if not obs:
+            yield (seq, rank)
+        else:
+            prev_state = seq[-1]
+            for next_state, t_rank in trans(prev_state):
+                for emission, e_rank in emit(next_state):
+                    if emission == obs[0]:
+                        result = (seq + (next_state,), rank + t_rank + e_rank)
+                        print(f"[TRACE] obs={obs}, seq={seq}, rank={rank}, prev_state={prev_state}, next_state={next_state}, t_rank={t_rank}, emission={emission}, e_rank={e_rank}, result={result}")
+                        yield from helper(seq + (next_state,), rank + t_rank + e_rank, obs[1:])
+    return Ranking(lambda: (result for init_state, init_rank in init() for result in helper((init_state,), init_rank, obs)))
+
+def print_hmm(obs):
+    print(f"Hidden Markov Model output ranking for observations: {obs}")
+    ranking = hmm(obs)
     pr_all(ranking)
 
 if __name__ == "__main__":
-    hmm_example()
+    # Example 1: corresponds to (pr (hmm `("no" "no" "yes" "no" "no"))) in Racket
+    print_hmm(['no', 'no', 'yes', 'no', 'no'])
+    # Example 2: corresponds to (pr (hmm `("yes" "yes" "yes" "no" "no"))) in Racket
+    print_hmm(['yes', 'yes', 'yes', 'no', 'no'])
+    # Example 3: all "rainy" path (should yield rank 0 for all-rainy)
+    print_hmm(['yes', 'yes', 'yes', 'yes', 'yes', 'yes'])
+
