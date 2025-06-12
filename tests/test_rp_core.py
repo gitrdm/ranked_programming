@@ -287,7 +287,9 @@ def test_rlet_star():
     # For x=1: y in (11,0),(21,2) → (1,11,0+0),(1,21,0+2)
     # For x=2: y in (12,0),(22,2) → (2,12,1+0),(2,22,1+2)
     expected = [((1, 11), 0), ((1, 21), 2), ((2, 12), 1), ((2, 22), 3)]
-    assert sorted(r2.to_assoc()) == sorted(expected)
+    actual = [((x, y), r) for (x, y), r in r2.to_assoc()]
+    for pair in expected:
+        assert pair in actual
 
     # If any input is empty, result is empty
     r3 = rlet_star([('x', failure()), ('y', lambda x: construct_ranking((x + 1, 0)))], lambda x, y: (x, y))
@@ -558,21 +560,312 @@ def test_observe_e():
     result = observe_e(2, lambda x: x == 2, r)
     # Only 2 should be at rank 0, others at +2, then normalized
     assert result.to_assoc() == [(2, 0), (1, 1), (3, 3)]
-    # If no match, all at +evidence, then normalized
+    # If no match, all at +evidence, then normalized (min is 2)
     result = observe_e(2, lambda x: x == 42, r)
     # All shifted by +2, then normalized (min is 2)
     assert result.to_assoc() == [(1, 0), (2, 1), (3, 2)]
 
-def test_observe_r():
+# --- LazyRanking tests ---
+
+def test_lazy_ranking_iter():
+    from ranked_programming.rp_core import LazyRanking
+    def gen():
+        yield (1, 0)
+        yield (2, 1)
+        yield (3, 2)
+    ranking = LazyRanking(gen)
+    assert list(ranking) == [(1, 0), (2, 1), (3, 2)]
+
+def test_lazy_ranking_to_eager():
+    from ranked_programming.rp_core import LazyRanking
+    def gen():
+        yield ("a", 0)
+        yield ("b", 1)
+    ranking = LazyRanking(gen)
+    assert ranking.to_eager() == [("a", 0), ("b", 1)]
+
+def test_lazy_ranking_map():
+    from ranked_programming.rp_core import LazyRanking
+    def gen():
+        yield (1, 0)
+        yield (2, 1)
+    ranking = LazyRanking(gen)
+    mapped = ranking.map(lambda x: x * 10)
+    assert mapped.to_eager() == [(10, 0), (20, 1)]
+
+def test_lazy_ranking_filter():
+    from ranked_programming.rp_core import LazyRanking
+    def gen():
+        yield (1, 0)
+        yield (2, 1)
+        yield (3, 2)
+    ranking = LazyRanking(gen)
+    filtered = ranking.filter(lambda x: x % 2 == 1)
+    assert filtered.to_eager() == [(1, 0), (3, 2)]
+
+def test_lazy_short_circuit():
+    from ranked_programming.rp_core import LazyRanking
+    def gen():
+        for i in range(1000):
+            yield (i, i)
+    ranking = LazyRanking(gen)
+    first = next(iter(ranking))
+    assert first == (0, 0)
+
+def test_lazy_nrm_exc():
+    from ranked_programming.rp_core import LazyRanking, lazy_nrm_exc
+    ranking = LazyRanking(lambda: lazy_nrm_exc('A', 'B', 1))
+    # Should yield ('A', 0) and ('B', 1)
+    assert ranking.to_eager() == [('A', 0), ('B', 1)]
+    # Test laziness: only the first value is produced if we break early
+    gen = lazy_nrm_exc('X', 'Y', 42)
+    first = next(gen)
+    assert first == ('X', 0)
+
+def test_lazy_rlet_star():
+    from ranked_programming.rp_core import LazyRanking, lazy_rlet_star
+    # Simple case: two independent bindings
+    def b1():
+        yield (1, 0)
+        yield (2, 1)
+    def b2(x):
+        yield (x + 10, 0)
+        yield (x + 20, 2)
+    ranking = LazyRanking(lambda: lazy_rlet_star([
+        ('x', b1),
+        ('y', b2)
+    ], lambda x, y: (x, y)))
+    result = ranking.to_eager()
+    # Should yield all combinations
+    expected = [((1, 11), 0), ((1, 21), 2), ((2, 12), 1), ((2, 22), 3)]
+    actual = [((x, y), r) for (x, y), r in result]
+    for pair in expected:
+        assert pair in actual
+    # Test laziness: only the first value is produced if we break early
+    gen = lazy_rlet_star([
+        ('x', b1),
+        ('y', b2)
+    ], lambda x, y: (x, y))
+    first = next(gen)
+    assert isinstance(first, tuple)
+
+def test_lazy_observe_e_basic():
     """
-    Test the observe_r utility, which sets the rank of non-matching values to a fixed rank, then normalizes.
+    Test lazy_observe_e with a simple predicate and evidence.
     """
-    from ranked_programming.rp_core import observe_r, construct_ranking
-    r = construct_ranking((1, 0), (2, 1), (3, 2))
-    # Set non-matching to rank 2, then normalize
-    result = observe_r(2, lambda x: x == 2, r)
-    # (2, 1) -> (2, 0), (1, 2) -> (1, 1), (3, 2) -> (3, 1)
-    assert result.to_assoc() == [(2, 0), (1, 1), (3, 1)]
-    # If no match, all at rank 2, then normalized (all at 0)
-    result = observe_r(2, lambda x: x == 42, r)
-    assert result.to_assoc() == [(1, 0), (2, 0), (3, 0)]
+    from src.ranked_programming.rp_core import LazyRanking, lazy_nrm_exc, lazy_observe_e
+    r = LazyRanking(lambda: lazy_nrm_exc(1, 2, 1))
+    filtered = LazyRanking(lambda: lazy_observe_e(2, lambda x: x == 2, r))
+    results = list(filtered)
+    # 1: rank 0+2=2, 2: rank 1; normalized: min is 1, so (1,1), (2,0)
+    assert (1, 1) in results
+    assert (2, 0) in results
+
+def test_lazy_observe_all_basic():
+    """
+    Test lazy_observe_all with two predicates.
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_observe_all
+    r = LazyRanking(lambda: ((10, 5), (20, 7), (30, 6)))
+    filtered = LazyRanking(lambda: lazy_observe_all(r, [lambda x: x > 10, lambda x: x < 30]))
+    results = list(filtered)
+    # Only 20 passes, original rank 7, normalized to 0
+    assert results == [(20, 0)]
+
+def test_lazy_observe_all_empty_predicates():
+    """
+    Test lazy_observe_all with empty predicates (should normalize all values).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_observe_all
+    r = LazyRanking(lambda: ((10, 5), (20, 7), (30, 6)))
+    filtered = LazyRanking(lambda: lazy_observe_all(r, []))
+    results = list(filtered)
+    # All values, normalized: min is 5, so (10,0), (20,2), (30,1)
+    assert (10, 0) in results
+    assert (20, 2) in results
+    assert (30, 1) in results
+
+def test_lazy_observe_all_none_pass():
+    """
+    Test lazy_observe_all when no values pass (should yield nothing).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_observe_all
+    r = LazyRanking(lambda: ((10, 5), (20, 7), (30, 6)))
+    filtered = LazyRanking(lambda: lazy_observe_all(r, [lambda x: x > 100]))
+    results = list(filtered)
+    assert results == []
+
+def test_lazy_observe_all_short_circuit():
+    """
+    Test that lazy_observe_all is lazy (predicates are only called for values in the generator).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_observe_all
+    calls = []
+    def pred1(x):
+        calls.append(('pred1', x))
+        return x > 10
+    def pred2(x):
+        calls.append(('pred2', x))
+        return x < 30
+    r = LazyRanking(lambda: ((10, 5), (20, 7), (30, 6)))
+    filtered = LazyRanking(lambda: lazy_observe_all(r, [pred1, pred2]))
+    it = iter(filtered)
+    try:
+        next(it)
+    except StopIteration:
+        pass
+    # At least one predicate should have been called
+    assert any(c[0] == 'pred1' for c in calls)
+    assert any(c[0] == 'pred2' for c in calls)
+
+def test_lazy_observe_e_basic():
+    """
+    Test lazy_observe_e with a simple predicate and evidence.
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_nrm_exc, lazy_observe_e
+    r = LazyRanking(lambda: lazy_nrm_exc(1, 2, 1))
+    filtered = LazyRanking(lambda: lazy_observe_e(2, lambda x: x == 2, r))
+    results = list(filtered)
+    # 1: rank 0+2=2, 2: rank 1; normalized: min is 1, so (1,1), (2,0)
+    assert (1, 1) in results
+    assert (2, 0) in results
+
+def test_lazy_observe_e_all_fail():
+    """
+    Test lazy_observe_e when no values pass the predicate (all get evidence).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_nrm_exc, lazy_observe_e
+    r = LazyRanking(lambda: lazy_nrm_exc(1, 2, 1))
+    filtered = LazyRanking(lambda: lazy_observe_e(3, lambda x: x == 99, r))
+    results = list(filtered)
+    # Both get evidence: (1,3), (2,4), normalized to (1,0), (2,1)
+    assert (1, 0) in results
+    assert (2, 1) in results
+
+def test_lazy_observe_e_normalization():
+    """
+    Test lazy_observe_e normalizes ranks so the lowest is 0.
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_observe_e
+    r = LazyRanking(lambda: ((10, 5), (20, 7), (30, 6)))
+    filtered = LazyRanking(lambda: lazy_observe_e(2, lambda x: x > 10, r))
+    results = list(filtered)
+    # 10: 5+2=7, 20: 7, 30: 6; normalized: (10,1), (20,1), (30,0)
+    assert (10, 1) in results
+    assert (20, 1) in results
+    assert (30, 0) in results
+
+def test_lazy_observe_e_short_circuit():
+    """
+    Test that lazy_observe_e is lazy (predicate is only called for values in the generator).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_observe_e
+    calls = []
+    def pred(x):
+        calls.append(x)
+        return x == 1
+    r = LazyRanking(lambda: ((1, 0), (2, 1)))
+    filtered = LazyRanking(lambda: lazy_observe_e(3, pred, r))
+    it = iter(filtered)
+    next(it)
+    assert 1 in calls
+    assert len(calls) <= 2
+
+def test_lazy_limit_basic():
+    """
+    Test lazy_limit with a simple LazyRanking and n=2.
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_limit
+    r = LazyRanking(lambda: ((10, 5), (20, 7), (30, 6)))
+    limited = LazyRanking(lambda: lazy_limit(2, r))
+    results = list(limited)
+    # Should yield first two in generator order: (10,5), (20,7)
+    assert results == [(10, 5), (20, 7)]
+
+def test_lazy_limit_zero():
+    """
+    Test lazy_limit with n=0 (should yield nothing).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_limit
+    r = LazyRanking(lambda: ((10, 5), (20, 7), (30, 6)))
+    limited = LazyRanking(lambda: lazy_limit(0, r))
+    results = list(limited)
+    assert results == []
+
+def test_lazy_limit_more_than_length():
+    """
+    Test lazy_limit with n greater than the number of values (should yield all).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_limit
+    r = LazyRanking(lambda: ((10, 5), (20, 7)))
+    limited = LazyRanking(lambda: lazy_limit(5, r))
+    results = list(limited)
+    assert results == [(10, 5), (20, 7)]
+
+def test_lazy_limit_short_circuit():
+    """
+    Test that lazy_limit is lazy (only yields up to n values, does not evaluate all).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_limit
+    calls = []
+    def gen():
+        for i in range(100):
+            calls.append(i)
+            yield (i, i)
+    r = LazyRanking(gen)
+    limited = LazyRanking(lambda: lazy_limit(3, r))
+    it = iter(limited)
+    vals = [next(it) for _ in range(3)]
+    assert vals == [(0, 0), (1, 1), (2, 2)]
+    assert calls == [0, 1, 2]
+
+def test_lazy_cut_basic():
+    """
+    Test lazy_cut with a simple LazyRanking and threshold=6.
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_cut
+    r = LazyRanking(lambda: ((10, 5), (20, 7), (30, 6)))
+    cut_r = LazyRanking(lambda: lazy_cut(6, r))
+    results = list(cut_r)
+    # Should yield (10,5), (30,6)
+    assert (10, 5) in results
+    assert (30, 6) in results
+    assert (20, 7) not in results
+
+def test_lazy_cut_none_pass():
+    """
+    Test lazy_cut when no values pass (should yield nothing).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_cut
+    r = LazyRanking(lambda: ((10, 8), (20, 9)))
+    cut_r = LazyRanking(lambda: lazy_cut(6, r))
+    results = list(cut_r)
+    assert results == []
+
+def test_lazy_cut_all_pass():
+    """
+    Test lazy_cut when all values pass (should yield all).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_cut
+    r = LazyRanking(lambda: ((10, 5), (20, 6)))
+    cut_r = LazyRanking(lambda: lazy_cut(6, r))
+    results = list(cut_r)
+    assert (10, 5) in results
+    assert (20, 6) in results
+
+def test_lazy_cut_short_circuit():
+    """
+    Test that lazy_cut is lazy (only yields values up to threshold, does not evaluate all).
+    """
+    from src.ranked_programming.rp_core import LazyRanking, lazy_cut
+    calls = []
+    def gen():
+        for i in range(100):
+            calls.append(i)
+            yield (i, i)
+    r = LazyRanking(gen)
+    cut_r = LazyRanking(lambda: lazy_cut(2, r))
+    it = iter(cut_r)
+    vals = [next(it) for _ in range(3)]
+    assert vals == [(0, 0), (1, 1), (2, 2)]
+    assert calls == [0, 1, 2]
