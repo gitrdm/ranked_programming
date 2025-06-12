@@ -5,13 +5,12 @@ All combinators and the main abstraction (`Ranking`) are lazy, generator-based, 
 
 Literate documentation and type hints included.
 """
-from typing import Any, List, Tuple, Optional, Callable, Dict, Union, Generator
+from typing import Any, Callable, Iterable, Tuple, Generator
+from collections.abc import Iterable as ABCIterable, Iterator
 
 # --- Ranking: lazy ranked programming abstraction ---
 
-from typing import Callable, Generator, Iterable, Tuple, Any
-
-class Ranking:
+class Ranking(ABCIterable):
     """
     Ranking: A lazy abstraction for ranked programming.
 
@@ -36,10 +35,10 @@ class Ranking:
     def __init__(self, generator_fn: Callable[[], Iterable[Tuple[Any, int]]]):
         self._generator_fn = generator_fn
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Tuple[Any, int]]:
         return iter(self._generator_fn())
 
-    def to_eager(self) -> list:
+    def to_eager(self) -> list[Tuple[Any, int]]:
         """Materialize all (value, rank) pairs as a list."""
         return list(self)
 
@@ -60,6 +59,34 @@ class Ranking:
 
 # --- Lazy combinators (now default, no prefix) ---
 
+def _flatten_ranking_like(obj, rank_offset=0):
+    """
+    Helper: Yield (value, rank) pairs from a Ranking, generator, or iterable, with optional rank offset.
+    If obj is a Ranking, generator, or iterable of (value, rank), yields all pairs with rank incremented by rank_offset.
+    If obj is a single value, yields (obj, rank_offset).
+    """
+    from collections.abc import Iterable
+    import types
+    if isinstance(obj, Ranking):
+        for v, r in obj:
+            yield (v, r + rank_offset)
+    elif isinstance(obj, types.GeneratorType) or (isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, dict))):
+        try:
+            it = iter(obj)
+            first = next(it)
+            if isinstance(first, tuple) and len(first) == 2:
+                yield (first[0], first[1] + rank_offset)
+                for v, r in it:
+                    yield (v, r + rank_offset)
+            else:
+                yield (first, rank_offset)
+                for v in it:
+                    yield (v, rank_offset)
+        except StopIteration:
+            return
+    else:
+        yield (obj, rank_offset)
+
 def nrm_exc(v1, v2, rank2):
     """
     nrm_exc: yields (v1, 0) and all (value, rank) pairs from v2 at rank2 (flattened).
@@ -70,59 +97,15 @@ def nrm_exc(v1, v2, rank2):
 
     If both v1 and v2 are empty (generators that yield nothing), yields nothing.
     """
-    from collections.abc import Iterable
-    def is_empty_iterable(obj):
-        try:
-            it = iter(obj)
-            first = next(it)
-            def new_gen():
-                yield first
-                yield from it
-            return False, new_gen()
-        except StopIteration:
-            return True, None
-        except TypeError:
-            return False, obj
-    v1_is_empty = False
-    if isinstance(v1, Ranking):
-        v1_iter = iter(v1)
-        try:
-            v1_first = next(v1_iter)
-            def v1_gen():
-                yield v1_first
-                yield from v1_iter
-            v1 = v1_gen()
-        except StopIteration:
-            v1_is_empty = True
-    elif isinstance(v1, Iterable) and not isinstance(v1, (str, bytes, dict)):
-        v1_is_empty, v1 = is_empty_iterable(v1)
-    v2_is_empty = False
-    if isinstance(v2, Ranking):
-        v2_iter = iter(v2)
-        try:
-            v2_first = next(v2_iter)
-            def v2_gen():
-                yield v2_first
-                yield from v2_iter
-            v2 = v2_gen()
-        except StopIteration:
-            v2_is_empty = True
-    elif isinstance(v2, Iterable) and not isinstance(v2, (str, bytes, dict)):
-        v2_is_empty, v2 = is_empty_iterable(v2)
-    if v1_is_empty and v2_is_empty:
+    yielded = False
+    for pair in _flatten_ranking_like(v1, 0):
+        yield pair
+        yielded = True
+    for pair in _flatten_ranking_like(v2, rank2):
+        yield pair
+        yielded = True
+    if not yielded:
         return
-    if not v1_is_empty:
-        if isinstance(v1, Iterable) and not isinstance(v1, (str, bytes, dict)):
-            for v, r in v1:
-                yield (v, r)
-        else:
-            yield (v1, 0)
-    if not v2_is_empty:
-        if isinstance(v2, Iterable) and not isinstance(v2, (str, bytes, dict)):
-            for v, r in v2:
-                yield (v, r + rank2)
-        else:
-            yield (v2, rank2)
 
 def rlet_star(bindings, body):
     """
@@ -133,7 +116,6 @@ def rlet_star(bindings, body):
     Binding functions are called with as many arguments as they accept (from the environment), supporting both zero-argument and multi-argument functions.
     """
     from collections.abc import Iterable
-    import types
     import inspect
     def to_ranking(val, env):
         if isinstance(val, Ranking):
@@ -142,25 +124,14 @@ def rlet_star(bindings, body):
             sig = inspect.signature(val)
             n_args = len(sig.parameters)
             result = val(*env[:n_args])
-            if isinstance(result, Ranking):
-                return result
-            elif isinstance(result, Iterable) and not isinstance(result, (str, bytes, dict, tuple)):
-                return Ranking(lambda: result)
-            else:
-                return Ranking(lambda: ((result, 0),))
+            return Ranking(lambda: _flatten_ranking_like(result, 0))
         else:
-            return Ranking(lambda: ((val, 0),))
+            return Ranking(lambda: _flatten_ranking_like(val, 0))
     def helper(idx, env, acc_rank):
         if idx == len(bindings):
             result = body(*env)
-            if isinstance(result, Ranking):
-                for v, r in result:
-                    yield (v, acc_rank + r)
-            elif isinstance(result, types.GeneratorType):
-                for v, r in result:
-                    yield (v, acc_rank + r)
-            else:
-                yield (result, acc_rank)
+            for v, r in _flatten_ranking_like(result, acc_rank):
+                yield (v, r)
             return
         name, val = bindings[idx]
         ranking = to_ranking(val, env)
@@ -177,34 +148,22 @@ def rlet(bindings, body):
     If the body returns a Ranking or generator, it is automatically flattened so only (value, rank) pairs are yielded.
     """
     from collections.abc import Iterable
-    import types
     def to_ranking(val):
         if isinstance(val, Ranking):
             return val
         elif callable(val):
             result = val()
-            if isinstance(result, Ranking):
-                return result
-            elif isinstance(result, Iterable) and not isinstance(result, (str, bytes, dict)):
-                return Ranking(lambda: result)
-            else:
-                return Ranking(lambda: ((result, 0),))
+            return Ranking(lambda: _flatten_ranking_like(result, 0))
         else:
-            return Ranking(lambda: ((val, 0),))
+            return Ranking(lambda: _flatten_ranking_like(val, 0))
     rankings = [to_ranking(val) for _, val in bindings]
     from itertools import product
     for combo in product(*rankings):
         values = [v for v, _ in combo]
         total_rank = sum(r for _, r in combo)
         result = body(*values)
-        if isinstance(result, Ranking):
-            for v, r in result:
-                yield (v, total_rank + r)
-        elif isinstance(result, types.GeneratorType):
-            for v, r in result:
-                yield (v, total_rank + r)
-        else:
-            yield (result, total_rank)
+        for v, r in _flatten_ranking_like(result, total_rank):
+            yield (v, r)
 
 def either_of(*rankings):
     """
@@ -232,38 +191,50 @@ def ranked_apply(f, *args):
     If f(*values) returns a Ranking or generator, it is automatically flattened so only (value, rank) pairs are yielded.
     """
     from collections.abc import Iterable
-    import types
     def to_ranking(x):
         if isinstance(x, Ranking):
             return x
         else:
-            return Ranking(lambda: ((x, 0),))
+            return Ranking(lambda: _flatten_ranking_like(x, 0))
     rankings = [to_ranking(arg) for arg in args]
     from itertools import product
     for combo in product(*rankings):
         values = [v for v, _ in combo]
         total_rank = sum(r for _, r in combo)
         result = f(*values)
-        if isinstance(result, Ranking):
-            for v, r in result:
-                yield (v, total_rank + r)
-        elif isinstance(result, types.GeneratorType):
-            for v, r in result:
-                yield (v, total_rank + r)
-        else:
-            yield (result, total_rank)
+        for v, r in _flatten_ranking_like(result, total_rank):
+            yield (v, r)
+
+def _normalize_ranking(ranking, pred=None, evidence=None, predicates=None):
+    """
+    Helper: Normalize and filter a Ranking by predicate(s), optionally adjusting ranks for evidence.
+    - If pred is given, only values where pred(value) is True are kept.
+    - If evidence is given, values not passing pred have evidence added to their rank.
+    - If predicates is a list, all must pass.
+    Returns a list of (value, rank) pairs with minimal rank normalized to 0.
+    """
+    if predicates is not None:
+        def all_preds(x):
+            return all(pred(x) for pred in predicates)
+        filtered = [(v, r) for v, r in ranking if all_preds(v)]
+    elif pred is not None and evidence is not None:
+        filtered = [(v, r if pred(v) else r + evidence) for v, r in ranking]
+    elif pred is not None:
+        filtered = [(v, r) for v, r in ranking if pred(v)]
+    else:
+        filtered = [(v, r) for v, r in ranking]
+    if not filtered:
+        return []
+    min_rank = min(r for _, r in filtered)
+    return [(v, r - min_rank) for v, r in filtered]
 
 def observe(pred, ranking):
     """
     observe: Filters a Ranking by a predicate, yields only values for which pred(value) is True, and normalizes ranks so the lowest is 0.
     If no values pass, yields nothing (empty generator).
     """
-    filtered = [(v, r) for v, r in ranking if pred(v)]
-    if not filtered:
-        return
-    min_rank = min(r for _, r in filtered)
-    for v, r in filtered:
-        yield (v, r - min_rank)
+    for v, r in _normalize_ranking(ranking, pred=pred):
+        yield (v, r)
 
 def observe_e(evidence, pred, ranking):
     """
@@ -272,29 +243,16 @@ def observe_e(evidence, pred, ranking):
       - Else, add evidence to rank.
     Yields all such pairs, normalized so the lowest rank is 0.
     """
-    adjusted = [(v, r if pred(v) else r + evidence) for v, r in ranking]
-    if not adjusted:
-        return
-    min_rank = min(r for _, r in adjusted)
-    for v, r in adjusted:
-        yield (v, r - min_rank)
+    for v, r in _normalize_ranking(ranking, pred=pred, evidence=evidence):
+        yield (v, r)
 
 def observe_all(ranking, predicates):
     """
     observe_all: Filters a Ranking by a list of predicates, keeping only values that satisfy all predicates, and normalizes the result.
     If predicates is empty, all values are kept and normalized.
     """
-    if not predicates:
-        filtered = [(v, r) for v, r in ranking]
-    else:
-        def all_preds(x):
-            return all(pred(x) for pred in predicates)
-        filtered = [(v, r) for v, r in ranking if all_preds(v)]
-    if not filtered:
-        return
-    min_rank = min(r for _, r in filtered)
-    for v, r in filtered:
-        yield (v, r - min_rank)
+    for v, r in _normalize_ranking(ranking, predicates=predicates):
+        yield (v, r)
 
 def limit(n, ranking):
     """
