@@ -13,19 +13,7 @@ This example demonstrates lazy ranked programming for a simple Hidden Markov Mod
 
 Run this file to see the ranked output for the HMM scenario, using the lazy API.
 """
-from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star
-
-def pr_all(lr):
-    """Pretty-print all (value, rank) pairs from a LazyRanking."""
-    items = list(lr)
-    if not items:
-        print("Failure (empty ranking)")
-        return
-    print("Rank  Value")
-    print("------------")
-    for v, rank in items:
-        print(f"{rank:>5} {v}")
-    print("Done")
+from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star, pr_all
 
 def hmm_example():
     # States: S0 (normal), S1 (exceptional)

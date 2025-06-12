@@ -12,18 +12,7 @@ This example demonstrates lazy ranked programming for a simple ranking network.
 
 Run this file to see the ranked output for the ranking network, using the lazy API.
 """
-from ranked_programming.rp_core import Ranking, nrm_exc, rlet
-
-def pr_all(lr):
-    items = list(lr)
-    if not items:
-        print("Failure (empty ranking)")
-        return
-    print("Rank  Value")
-    print("------------")
-    for v, rank in items:
-        print(f"{rank:>5} {v}")
-    print("Done")
+from ranked_programming.rp_core import Ranking, nrm_exc, rlet, pr_all
 
 def ranking_network_example():
     # Nodes: x, y, z (all lazy)

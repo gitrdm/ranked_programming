@@ -12,20 +12,8 @@ This example demonstrates the use of lazy_rlet and lazy_rlet_star for modeling i
 Run this file to see the ranked outputs for both independent and dependent uncertainty scenarios, using the lazy API.
 """
 from ranked_programming.rp_core import (
-    Ranking, nrm_exc, rlet, rlet_star
+    Ranking, nrm_exc, rlet, rlet_star, pr_all
 )
-
-def pr_all(lr):
-    """Pretty-print all (value, rank) pairs from a LazyRanking."""
-    items = list(lr)
-    if not items:
-        print("Failure (empty ranking)")
-        return
-    print("Rank  Value")
-    print("------------")
-    for v, rank in items:
-        print(f"{rank:>5} {v}")
-    print("Done")
 
 def ranked_let_example():
     # Independent uncertainty: beer and peanuts (lazy)

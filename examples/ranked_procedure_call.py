@@ -12,18 +12,7 @@ This example demonstrates lazy ranked function application using lazy_rlet_star.
 
 Run this file to see the ranked output for the uncertain procedure call, using the lazy API.
 """
-from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star
-
-def pr_all(lr):
-    items = list(lr)
-    if not items:
-        print("Failure (empty ranking)")
-        return
-    print("Rank  Value")
-    print("------------")
-    for v, rank in items:
-        print(f"{rank:>5} {v}")
-    print("Done")
+from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star, pr_all
 
 def ranked_procedure_call_example():
     # Uncertain operation: normally add, exceptionally multiply (lazy)
