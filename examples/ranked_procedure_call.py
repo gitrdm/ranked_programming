@@ -1,16 +1,16 @@
 """
-Literate Example: Lazy Ranked Procedure Call (Python, fully lazy)
+Literate Example: Ranked Procedure Call (Python)
 
-This example demonstrates lazy ranked function application using lazy_rlet_star.
+This example demonstrates ranked function application using rlet_star.
 
-- The operation (op) is uncertain: normally addition, exceptionally multiplication (using lazy_nrm_exc).
-- The argument (arg) is uncertain: normally 10, exceptionally 20 (using lazy_nrm_exc).
-- lazy_rlet_star is used to apply the uncertain operation to the uncertain argument.
-- The output is a lazy ranking of all possible results, ranked by plausibility.
+- The operation (op) is uncertain: normally addition, exceptionally multiplication (using nrm_exc).
+- The argument (arg) is uncertain: normally 10, exceptionally 20 (using nrm_exc).
+- rlet_star is used to apply the uncertain operation to the uncertain argument.
+- The output is a ranking of all possible results, ranked by plausibility.
 
-**Note:** This version relies on the API's idiomatic flattening. No local flattening or manual unwrapping is performed; all combinators yield only (value, rank) pairs as expected.
+Note: All combinators yield only (value, rank) pairs as expected; no manual flattening is needed.
 
-Run this file to see the ranked output for the uncertain procedure call, using the lazy API.
+Run this file to see the ranked output for the uncertain procedure call.
 """
 from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star, pr_all
 

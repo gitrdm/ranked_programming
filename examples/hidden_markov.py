@@ -1,17 +1,17 @@
 """
-Literate Example: Lazy Hidden Markov Model (Python, fully lazy)
+Literate Example: Hidden Markov Model (Python)
 
-This example demonstrates lazy ranked programming for a simple Hidden Markov Model (HMM) with two states.
+This example demonstrates ranked programming for a simple Hidden Markov Model (HMM) with two states.
 
 - States: S0 (normal), S1 (exceptional).
-- Transitions: normally stay in the same state, exceptionally switch (using lazy_nrm_exc).
+- Transitions: normally stay in the same state, exceptionally switch (using nrm_exc).
 - Emissions: each state emits a symbol, with normal and exceptional outcomes.
-- lazy_rlet_star is used to model the sequence of states and emissions, propagating uncertainty through time.
-- The output is a lazy ranking of all possible (s0, s1, e0, e1) tuples, ranked by plausibility.
+- rlet_star is used to model the sequence of states and emissions, propagating uncertainty through time.
+- The output is a ranking of all possible (s0, s1, e0, e1) tuples, ranked by plausibility.
 
-**Note:** This version relies on the API's idiomatic flattening. No local flattening or manual unwrapping is performed; all combinators yield only (value, rank) pairs as expected.
+Note: All combinators yield only (value, rank) pairs as expected; no manual flattening is needed.
 
-Run this file to see the ranked output for the HMM scenario, using the lazy API.
+Run this file to see the ranked output for the HMM scenario.
 """
 from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star, pr_all
 
@@ -23,7 +23,7 @@ def hmm_example():
         return Ranking(lambda: nrm_exc('A', 'B', 1)) if state == 'S0' else Ranking(lambda: nrm_exc('B', 'A', 1))
     # Initial state
     s0 = Ranking(lambda: nrm_exc('S0', 'S1', 1))
-    # lazy_rlet_star for sequence: s0, s1, e0, e1 (no flattening needed)
+    # rlet_star for sequence: s0, s1, e0, e1 (no flattening needed)
     ranking = Ranking(lambda: rlet_star([
         ('s0', s0),
         ('s1', transition),

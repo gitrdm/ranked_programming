@@ -1,15 +1,15 @@
 """
-Literate Example: Lazy Ranked Let (Python, fully lazy)
+Literate Example: Ranked Let (Python)
 
-This example demonstrates the use of lazy_rlet and lazy_rlet_star for modeling independent and dependent uncertainty in a fully lazy, generator-based style.
+This example demonstrates the use of rlet and rlet_star for modeling independent and dependent uncertainty in a generator-based style.
 
-- Independent uncertainty: beer and peanuts are chosen independently, each with their own lazy ranking.
-- Dependent uncertainty: peanut consumption depends on whether beer is consumed, modeled with lazy_rlet_star.
+- Independent uncertainty: beer and peanuts are chosen independently, each with their own ranking.
+- Dependent uncertainty: peanut consumption depends on whether beer is consumed, modeled with rlet_star.
 - The output shows how uncertainty propagates through both independent and dependent choices, using lazy evaluation.
 
-**Note:** This version relies on the API's idiomatic flattening. No local flattening or manual unwrapping is performed; all combinators yield only (value, rank) pairs as expected.
+Note: All combinators yield only (value, rank) pairs as expected; no manual flattening is needed.
 
-Run this file to see the ranked outputs for both independent and dependent uncertainty scenarios, using the lazy API.
+Run this file to see the ranked outputs for both independent and dependent uncertainty scenarios.
 """
 from ranked_programming.rp_core import (
     Ranking, nrm_exc, rlet, rlet_star, pr_all

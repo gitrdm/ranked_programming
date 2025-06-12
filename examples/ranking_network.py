@@ -1,16 +1,16 @@
 """
-Literate Example: Lazy Ranking Network (Python, fully lazy)
+Literate Example: Ranking Network (Python)
 
-This example demonstrates lazy ranked programming for a simple ranking network.
+This example demonstrates ranked programming for a simple ranking network.
 
-- Nodes x and y are uncertain, each with a normal and exceptional value (using lazy_nrm_exc).
-- Node z depends on x and y: normally z = x + y, exceptionally z = x * y (using lazy_nrm_exc).
-- lazy_rlet is used to combine uncertainty across the network.
-- The output is a lazy ranking of all possible z values, ranked by plausibility.
+- Nodes x and y are uncertain, each with a normal and exceptional value (using nrm_exc).
+- Node z depends on x and y: normally z = x + y, exceptionally z = x * y (using nrm_exc).
+- rlet is used to combine uncertainty across the network.
+- The output is a ranking of all possible z values, ranked by plausibility.
 
-**Note:** This version relies on the API's idiomatic flattening. No local flattening or manual unwrapping is performed; all combinators yield only (value, rank) pairs as expected.
+Note: All combinators yield only (value, rank) pairs as expected; no manual flattening is needed.
 
-Run this file to see the ranked output for the ranking network, using the lazy API.
+Run this file to see the ranked output for the ranking network.
 """
 from ranked_programming.rp_core import Ranking, nrm_exc, rlet, pr_all
 

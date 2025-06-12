@@ -1,5 +1,5 @@
 """
-Literate Example: Spelling Correction (Python, lazy API)
+Literate Example: Spelling Correction (Python)
 
 This example demonstrates ranked programming for spelling correction using ranked choices.
 
@@ -8,7 +8,7 @@ This example demonstrates ranked programming for spelling correction using ranke
 - nrm_exc and either_of are used to model the ranking of corrections.
 - The output is a ranking of possible corrections, ranked by plausibility.
 
-Run this file to see the ranked output for the spelling correction scenario, using the lazy API.
+Run this file to see the ranked output for the spelling correction scenario.
 """
 from ranked_programming.rp_core import Ranking, nrm_exc, either_of, pr_all
 

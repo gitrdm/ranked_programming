@@ -1,16 +1,16 @@
 """
-Literate Example: Lazy Boolean Circuit (Python, fully lazy)
+Literate Example: Boolean Circuit (Python)
 
-This example demonstrates lazy ranked programming for a simple boolean circuit.
+This example demonstrates ranked programming for a simple boolean circuit.
 
-- Each input (a, b, c) is a lazy ranked boolean: normally True, exceptionally False (rank 1).
+- Each input (a, b, c) is a ranked boolean: normally True, exceptionally False (rank 1).
 - The circuit computes (a and b) or c, propagating uncertainty through the logic.
-- Uses lazy_rlet to combine uncertainty across all variables.
-- The output is a lazy ranking of all possible circuit outputs, ranked by plausibility.
+- Uses rlet to combine uncertainty across all variables.
+- The output is a ranking of all possible circuit outputs, ranked by plausibility.
 
-**Note:** This version relies on the API's idiomatic flattening. No local flattening or manual unwrapping is performed; all combinators yield only (value, rank) pairs as expected.
+Note: All combinators yield only (value, rank) pairs as expected; no manual flattening is needed.
 
-Run this file to see the ranked output for the boolean circuit, using the lazy API.
+Run this file to see the ranked output for the boolean circuit.
 """
 from ranked_programming.rp_core import Ranking, nrm_exc, rlet, pr_all
 

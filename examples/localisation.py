@@ -1,18 +1,18 @@
 """
-Literate Example: Lazy Robot Localisation (Python, fully lazy)
+Literate Example: Robot Localisation (Python)
 
-This example demonstrates lazy ranked programming for a simple robot localisation problem.
+This example demonstrates ranked programming for a simple robot localisation problem.
 
 - The robot can be in one of three locations: A, B, or C.
-- Initial belief: normally at A, exceptionally at B or C (using nested lazy_nrm_exc).
+- Initial belief: normally at A, exceptionally at B or C (using nested nrm_exc).
 - The robot moves: normally stays, exceptionally moves to the next location.
 - The sensor: normally correct, exceptionally reports 'unknown'.
-- lazy_rlet_star is used to model the sequence of states and observations, propagating uncertainty.
-- The output is a lazy ranking of all possible (l0, l1, s1) tuples, ranked by plausibility.
+- rlet_star is used to model the sequence of states and observations, propagating uncertainty.
+- The output is a ranking of all possible (l0, l1, s1) tuples, ranked by plausibility.
 
-**Note:** This version relies on the API's idiomatic flattening. No local flattening or manual unwrapping is performed; all combinators yield only (value, rank) pairs as expected.
+Note: All combinators yield only (value, rank) pairs as expected; no manual flattening is needed.
 
-Run this file to see the ranked output for the robot localisation scenario, using the lazy API.
+Run this file to see the ranked output for the robot localisation scenario.
 """
 from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star, pr_all
 

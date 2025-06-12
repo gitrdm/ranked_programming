@@ -1,20 +1,20 @@
 """
-Literate Example: Lazy Recursion (Python, fully lazy)
+Literate Example: Recursion (Python)
 
-This example demonstrates lazy ranked programming with recursion and ranked choices.
+This example demonstrates ranked programming with recursion and ranked choices.
 
-- The recur function: normally returns x, exceptionally recurses on x*2 (until x > 500), using lazy_nrm_exc and LazyRanking.
-- The lazy_observe combinator is used to filter for values greater than 500.
-- The output is a lazy ranking of all possible values > 500, ranked by plausibility (number of recursions).
+- The recur function: normally returns x, exceptionally recurses on x*2 (until x > 500), using nrm_exc and Ranking.
+- The observe combinator is used to filter for values greater than 500.
+- The output is a ranking of all possible values > 500, ranked by plausibility (number of recursions).
 
-**Note:** This version relies on the API's idiomatic flattening. No local flattening or manual unwrapping is performed; all combinators yield only (value, rank) pairs as expected.
+Note: All combinators yield only (value, rank) pairs as expected; no manual flattening is needed.
 
-Run this file to see the ranked output for the recursive scenario, using the lazy API.
+Run this file to see the ranked output for the recursive scenario.
 """
 from ranked_programming.rp_core import Ranking, nrm_exc, observe
 
 def pr_all(lr):
-    """Pretty-print all (value, rank) pairs from a LazyRanking."""
+    """Pretty-print all (value, rank) pairs from a Ranking."""
     # No local flattening needed: lr is guaranteed to yield (value, rank) pairs
     items = list(lr)
     if not items:
@@ -27,7 +27,7 @@ def pr_all(lr):
     print("Done")
 
 def recur(x):
-    # Normally return x, exceptionally recur on x*2 (as LazyRanking)
+    # Normally return x, exceptionally recur on x*2 (as Ranking)
     if x > 500:
         return Ranking(lambda: ((x, 0),))
     else:
