@@ -1,27 +1,41 @@
 """
-Example: Boolean Circuit (Python port)
+Literate Example: Lazy Boolean Circuit (Python, fully lazy)
 
-This example demonstrates ranked programming for a simple boolean circuit, analogous to the Racket example.
+This example demonstrates lazy ranked programming for a simple boolean circuit.
 
-- Each input (a, b, c) is a ranked boolean: normally True, exceptionally False (rank 1).
+- Each input (a, b, c) is a lazy ranked boolean: normally True, exceptionally False (rank 1).
 - The circuit computes (a and b) or c, propagating uncertainty through the logic.
-- Uses rlet to combine uncertainty across all variables.
-- The output is a ranking of all possible circuit outputs, ranked by plausibility.
+- Uses lazy_rlet to combine uncertainty across all variables.
+- The output is a lazy ranking of all possible circuit outputs, ranked by plausibility.
 
-Run this file to see the ranked output for the boolean circuit.
+**Note:** This version relies on the API's idiomatic flattening. No local flattening or manual unwrapping is performed; all combinators yield only (value, rank) pairs as expected.
+
+Run this file to see the ranked output for the boolean circuit, using the lazy API.
 """
-from ranked_programming.rp_api import construct_ranking, nrm_exc, rlet, observe, pr_all
+from ranked_programming.rp_core import Ranking, nrm_exc, rlet
+
+def pr_all(lr):
+    items = list(lr)
+    if not items:
+        print("Failure (empty ranking)")
+        return
+    print("Rank  Value")
+    print("------------")
+    for v, rank in items:
+        print(f"{rank:>5} {v}")
+    print("Done")
 
 def boolean_circuit():
-    # Define ranked booleans: normally True, exceptionally False (rank 1)
-    a = nrm_exc(True, False, 1)
-    b = nrm_exc(True, False, 1)
-    c = nrm_exc(True, False, 1)
-    # Circuit: (a and b) or c
+    a = Ranking(lambda: nrm_exc(True, False, 1))
+    b = Ranking(lambda: nrm_exc(True, False, 1))
+    c = Ranking(lambda: nrm_exc(True, False, 1))
     def circuit(a, b, c):
         return (a and b) or c
-    # Use rlet to combine uncertainty
-    ranking = rlet({'a': a, 'b': b, 'c': c}, circuit)
+    ranking = Ranking(lambda: rlet([
+        ('a', a),
+        ('b', b),
+        ('c', c)
+    ], circuit))
     print("Boolean circuit output ranking:")
     pr_all(ranking)
 
