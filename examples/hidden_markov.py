@@ -12,6 +12,17 @@ This example demonstrates ranked programming for a simple Hidden Markov Model (H
 Run this file to see the ranked output for the HMM scenario.
 """
 from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star, observe, pr_all
+import logging
+import os
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # Default to INFO, can be set to DEBUG for tracing
+    format='[%(levelname)s] %(message)s'
+)
+# Allow debug mode via environment variable
+if os.environ.get('HMM_DEBUG', '0') == '1':
+    logging.getLogger().setLevel(logging.DEBUG)
 
 def init():
     return Ranking(lambda: nrm_exc('rainy', 'sunny', 0))
@@ -38,7 +49,7 @@ def hmm(obs):
                 for emission, e_rank in emit(next_state):
                     if emission == obs[0]:
                         result = (seq + (next_state,), rank + t_rank + e_rank)
-                        print(f"[TRACE] obs={obs}, seq={seq}, rank={rank}, prev_state={prev_state}, next_state={next_state}, t_rank={t_rank}, emission={emission}, e_rank={e_rank}, result={result}")
+                        logging.debug(f"obs={obs}, seq={seq}, rank={rank}, prev_state={prev_state}, next_state={next_state}, t_rank={t_rank}, emission={emission}, e_rank={e_rank}, result={result}")
                         yield from helper(seq + (next_state,), rank + t_rank + e_rank, obs[1:])
     return Ranking(lambda: (result for init_state, init_rank in init() for result in helper((init_state,), init_rank, obs)))
 
