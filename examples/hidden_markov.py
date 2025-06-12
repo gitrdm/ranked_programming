@@ -16,8 +16,8 @@ def hmm_example():
     ranking = rlet_star([
         ('s0', s0),
         ('s1', lambda s0: transition(s0)),
-        ('e0', lambda s0: emission(s0)),
-        ('e1', lambda s1: emission(s1)),
+        ('e0', lambda s0, s1: emission(s0)),
+        ('e1', lambda s0, s1, e0: emission(s1)),  # FIX: accept s0, s1, e0
     ], lambda s0, s1, e0, e1: (s0, s1, e0, e1))
     print("Hidden Markov Model output ranking:")
     pr_all(ranking)

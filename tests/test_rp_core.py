@@ -503,9 +503,10 @@ def test_pr_all(capsys):
     pr_all(r)
     captured = capsys.readouterr().out
     assert "Rank  Value" in captured
-    assert "1 0" in captured or "0 1" in captured  # Accept either order
-    assert "2 1" in captured
-    assert "3 2" in captured
+    # Check for correct output format: rank (right-aligned), then value
+    assert "    0 1" in captured
+    assert "    1 2" in captured
+    assert "    2 3" in captured
     # Empty ranking prints failure message
     pr_all(failure())
     captured = capsys.readouterr().out
