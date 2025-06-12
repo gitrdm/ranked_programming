@@ -630,22 +630,82 @@ class LazyRanking:
 
 def lazy_nrm_exc(v1, v2, rank2):
     """
-    Lazy version of nrm_exc: yields (v1, 0) and (v2, rank2) lazily.
+    Lazy version of nrm_exc: yields (v1, 0) and all (value, rank) pairs from v2 at rank2 (flattened).
 
-    Example:
-        ranking = LazyRanking(lambda: lazy_nrm_exc('A', 'B', 1))
-        for value, rank in ranking:
-            print(value, rank)
+    If v2 is a LazyRanking or generator, yields all its (value, rank) pairs with rank incremented by rank2.
+    If v2 is a single value, yields (v2, rank2).
+    This ensures that nested LazyRanking or generator values are always flattened, never yielded as values.
+
+    If both v1 and v2 are empty (generators that yield nothing), yields nothing.
     """
-    yield (v1, 0)
-    yield (v2, rank2)
+    from collections.abc import Iterable
+    # Helper to check if a generator/iterable is empty without consuming it
+    def is_empty_iterable(obj):
+        try:
+            it = iter(obj)
+            first = next(it)
+            # Not empty, re-yield first
+            def new_gen():
+                yield first
+                yield from it
+            return False, new_gen()
+        except StopIteration:
+            return True, None
+        except TypeError:
+            return False, obj
+    # Handle v1
+    v1_is_empty = False
+    if isinstance(v1, LazyRanking):
+        v1_iter = iter(v1)
+        try:
+            v1_first = next(v1_iter)
+            def v1_gen():
+                yield v1_first
+                yield from v1_iter
+            v1 = v1_gen()
+        except StopIteration:
+            v1_is_empty = True
+    elif isinstance(v1, Iterable) and not isinstance(v1, (str, bytes, dict)):
+        v1_is_empty, v1 = is_empty_iterable(v1)
+    # Handle v2
+    v2_is_empty = False
+    if isinstance(v2, LazyRanking):
+        v2_iter = iter(v2)
+        try:
+            v2_first = next(v2_iter)
+            def v2_gen():
+                yield v2_first
+                yield from v2_iter
+            v2 = v2_gen()
+        except StopIteration:
+            v2_is_empty = True
+    elif isinstance(v2, Iterable) and not isinstance(v2, (str, bytes, dict)):
+        v2_is_empty, v2 = is_empty_iterable(v2)
+    # If both are empty, yield nothing
+    if v1_is_empty and v2_is_empty:
+        return
+    # Yield v1 if not empty
+    if not v1_is_empty:
+        if isinstance(v1, Iterable) and not isinstance(v1, (str, bytes, dict)):
+            for v, r in v1:
+                yield (v, r)
+        else:
+            yield (v1, 0)
+    # Yield v2 if not empty
+    if not v2_is_empty:
+        if isinstance(v2, Iterable) and not isinstance(v2, (str, bytes, dict)):
+            for v, r in v2:
+                yield (v, r + rank2)
+        else:
+            yield (v2, rank2)
 
 def lazy_rlet_star(bindings, body):
     """
     lazy_rlet_star: Lazy version of rlet_star for sequential dependent bindings.
 
     Each binding can be a value, a LazyRanking, or a function of previous variables returning a generator or LazyRanking.
-    Yields (body(*values), total_rank) lazily for each combination.
+    The body can return a value, a LazyRanking, or a generator; all are automatically flattened so only (value, rank) pairs are yielded.
+    Binding functions are called with as many arguments as they accept (from the environment), supporting both zero-argument and multi-argument functions.
 
     Example:
         def b1():
@@ -654,31 +714,47 @@ def lazy_rlet_star(bindings, body):
         def b2(x):
             yield (x + 10, 0)
             yield (x + 20, 2)
+        def body(x, y):
+            def gen():
+                yield (x + y, 0)
+                yield (x * y, 1)
+            return gen()
         ranking = LazyRanking(lambda: lazy_rlet_star([
             ('x', b1),
             ('y', b2)
-        ], lambda x, y: (x, y)))
-        for value, rank in ranking:
-            print(value, rank)
+        ], body))
+        # yields all (value, rank) pairs from the body, flattened
     """
+    from collections.abc import Iterable
+    import types
+    import inspect
     def to_lazyranking(val, env):
         if isinstance(val, LazyRanking):
             return val
         elif callable(val):
-            result = val(*env)
+            # Call with as many env args as the function accepts
+            sig = inspect.signature(val)
+            n_args = len(sig.parameters)
+            result = val(*env[:n_args])
             if isinstance(result, LazyRanking):
                 return result
-            elif isinstance(result, Iterable) and not isinstance(result, (str, bytes, dict)):
-                # Assume it's a generator or iterable of (v, r)
+            elif isinstance(result, Iterable) and not isinstance(result, (str, bytes, dict, tuple)):
                 return LazyRanking(lambda: result)
             else:
-                # Single value
                 return LazyRanking(lambda: ((result, 0),))
         else:
             return LazyRanking(lambda: ((val, 0),))
     def helper(idx, env, acc_rank):
         if idx == len(bindings):
-            yield (body(*env), acc_rank)
+            result = body(*env)
+            if isinstance(result, LazyRanking):
+                for v, r in result:
+                    yield (v, acc_rank + r)
+            elif isinstance(result, types.GeneratorType):
+                for v, r in result:
+                    yield (v, acc_rank + r)
+            else:
+                yield (result, acc_rank)
             return
         name, val = bindings[idx]
         ranking = to_lazyranking(val, env)
@@ -692,6 +768,7 @@ def lazy_rlet(bindings, body):
 
     Each binding can be a value, a LazyRanking, or a function of no arguments returning a generator or LazyRanking.
     Yields (body(*values), total_rank) lazily for each combination (cartesian product of all bindings).
+    If the body returns a LazyRanking or generator, it is automatically flattened so only (value, rank) pairs are yielded.
 
     Example:
         def b1():
@@ -700,13 +777,19 @@ def lazy_rlet(bindings, body):
         def b2():
             yield (10, 0)
             yield (20, 2)
+        def body(x, y):
+            def gen():
+                yield (x + y, 0)
+                yield (x * y, 1)
+            return gen()
         ranking = LazyRanking(lambda: lazy_rlet([
             ('x', b1),
             ('y', b2)
-        ], lambda x, y: (x, y)))
-        for value, rank in ranking:
-            print(value, rank)
+        ], body))
+        # yields all (value, rank) pairs from the body, flattened
     """
+    from collections.abc import Iterable
+    import types
     def to_lazyranking(val):
         if isinstance(val, LazyRanking):
             return val
@@ -725,7 +808,16 @@ def lazy_rlet(bindings, body):
     for combo in product(*rankings):
         values = [v for v, _ in combo]
         total_rank = sum(r for _, r in combo)
-        yield (body(*values), total_rank)
+        result = body(*values)
+        # Flatten if result is LazyRanking or generator
+        if isinstance(result, LazyRanking):
+            for v, r in result:
+                yield (v, total_rank + r)
+        elif isinstance(result, types.GeneratorType):
+            for v, r in result:
+                yield (v, total_rank + r)
+        else:
+            yield (result, total_rank)
 
 def lazy_either_of(*rankings):
     """
@@ -759,13 +851,20 @@ def lazy_ranked_apply(f, *args):
     Applies function f to all combinations of lazy ranked arguments.
     Each argument can be a LazyRanking or a value (treated as rank 0).
     Yields (f(*values), total_rank) lazily for each combination.
+    If f(*values) returns a LazyRanking or generator, it is automatically flattened so only (value, rank) pairs are yielded.
     Example:
         r1 = LazyRanking(lambda: lazy_nrm_exc(1, 2, 1))
         r2 = LazyRanking(lambda: lazy_nrm_exc(10, 20, 2))
-        ranking = LazyRanking(lambda: lazy_ranked_apply(lambda x, y: x + y, r1, r2))
-        for value, rank in ranking:
-            print(value, rank)
+        def f(x, y):
+            def gen():
+                yield (x + y, 0)
+                yield (x * y, 1)
+            return gen()
+        ranking = LazyRanking(lambda: lazy_ranked_apply(f, r1, r2))
+        # yields all (value, rank) pairs from f, flattened
     """
+    from collections.abc import Iterable
+    import types
     def to_lazyranking(x):
         if isinstance(x, LazyRanking):
             return x
@@ -776,7 +875,16 @@ def lazy_ranked_apply(f, *args):
     for combo in product(*rankings):
         values = [v for v, _ in combo]
         total_rank = sum(r for _, r in combo)
-        yield (f(*values), total_rank)
+        result = f(*values)
+        # Flatten if result is LazyRanking or generator
+        if isinstance(result, LazyRanking):
+            for v, r in result:
+                yield (v, total_rank + r)
+        elif isinstance(result, types.GeneratorType):
+            for v, r in result:
+                yield (v, total_rank + r)
+        else:
+            yield (result, total_rank)
 
 def lazy_observe(pred, ranking):
     """
