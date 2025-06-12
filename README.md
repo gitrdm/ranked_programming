@@ -1,10 +1,10 @@
-# Ranked Programming (Python Port)
+# Ranked Programming (Python Port of Racket Library)
 
-A Python library for ranked programming, ported from the canonical Racket library. Provides combinators, macros, and utilities for reasoning about uncertainty, surprise, and ranked choices in computation.
+A Python library for ranked programming. Provides combinators and utilities for reasoning about uncertainty, surprise, and ranked choices in computation.
 
 ## Synopsis
 
-This project is a Python implementation of the concepts introduced in the paper "Ranked Programming" by Tjitze Rienstra. It explores a novel approach to modeling uncertainty that is not based on probability.
+This project is a Python port of the code introduced in the paper "Ranked Programming" by Tjitze Rienstra. As mentioned in the paper, "Ranked Programming" is based on the philosophy of "Ranking Theory" as developed by Wolfgang Spohn. It explores a novel approach to modeling uncertainty that is not based on probability.
 
 ### Core Idea
 
@@ -99,8 +99,25 @@ This will execute the example(s) and print their output in order.
 
 ## Documentation
 
-- All API functions and combinators are documented with literate docstrings.
-- See `python/docs/index.md` for a full API reference and usage guide.
+This project uses [Sphinx](https://www.sphinx-doc.org/) to generate API and user documentation from docstrings and reStructuredText files.
+
+### Prerequisites
+- Sphinx and the `sphinx-autodoc-typehints` extension (install with `pip install sphinx sphinx-autodoc-typehints` or see `requirements-dev.txt`)
+
+### Building the Docs
+
+1. Change to the `docs/` directory:
+   ```bash
+   cd docs
+   ```
+2. Build the HTML documentation:
+   ```bash
+   make html
+   ```
+3. Open the generated documentation:
+   - Open `docs/build/html/index.html` in your browser.
+
+All API functions and combinators are documented with literate docstrings. For more details, see the generated HTML docs or the source docstrings.
 
 ## Testing
 
@@ -112,3 +129,16 @@ pytest
 ## License
 
 See [LICENSE](../LICENSE).
+
+## Original Racket Project
+
+This Python library is a port of the original Racket ranked programming library by Tjitze Rienstra:
+
+- [Ranked Programming (Racket, original)](https://github.com/tjitze/ranked-programming.git)
+
+## References
+
+- Spohn, Wolfgang. (2012). *The Laws of Belief: Ranking Theory and Its Philosophical Applications*. Oxford University Press. ISBN-10: 0199697507, ISBN-13: 978-0199697502.
+
+  Marketing blurb:
+  Wolfgang Spohn presents the first full account of the dynamic laws of belief, by means of ranking theory. This book is his presentation of ranking theory and its ramifications. He motivates and introduces the basic notion of a ranking function, which recognises degrees of belief and at the same time accounts for belief simpliciter. He provides a measurement theory for ranking functions, accounts for auto-epistemology in ranking-theoretic terms, and explicates the basic notion of a (deductive or non-deductive) reason. The rich philosophical applications of Spohn's theory include: a new account of lawlikeness, an account of ceteris paribus laws, a new perspective on dispositions, a rich and detailed theory of deterministic causation, an understanding of natural modalities as an objectification of epistemic modalities, an account of the experiential basis of belief--and thus a restructuring of the debate on foundationalism and coherentism (and externalism and contextualism)--and, finally, a revival of fundamental a priori principles of reason fathoming the basics of empiricism and the relation between reason and truth, and concluding in a proof of a weak principle of causality. All this is accompanied by thorough comparative discussions, on a general level as well as within each topic, and in particular with respect to probability theory.
