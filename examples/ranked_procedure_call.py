@@ -1,31 +1,44 @@
 """
-Literate Example: Ranked Procedure Call (Python)
+Literate Example: Ranked Procedure Call (Python, semantically aligned with Racket)
 
-This example demonstrates ranked function application using rlet_star.
+This example demonstrates ranked function application using rlet_star, matching the Racket example.
 
-- The operation (op) is uncertain: normally addition, exceptionally multiplication (using nrm_exc).
-- The argument (arg) is uncertain: normally 10, exceptionally 20 (using nrm_exc).
-- rlet_star is used to apply the uncertain operation to the uncertain argument.
-- The output is a ranking of all possible results, ranked by plausibility.
+- Scenario 1: Deterministic addition.
+- Scenario 2: Uncertain argument (normally 10, exceptionally 20).
+- Scenario 3: Uncertain operation (normally +, exceptionally -) and uncertain argument.
 
-Note: All combinators yield only (value, rank) pairs as expected; no manual flattening is needed.
-
-Run this file to see the ranked output for the uncertain procedure call.
+Outputs are formatted for direct comparison with the Racket output.
 """
-from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star, pr_all
+from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star
+
+def print_ranking(title, ranking):
+    print(title)
+    print("Rank  Value\n------------")
+    results = sorted(ranking, key=lambda x: (x[1], x[0]))
+    for value, rank in results:
+        print(f"{rank:<5} {value}")
+    print("Done")
 
 def ranked_procedure_call_example():
-    # Uncertain operation: normally add, exceptionally multiply (lazy)
-    op = Ranking(lambda: nrm_exc(lambda x, y: x + y, lambda x, y: x * y, 1))
-    # Uncertain argument: normally 10, exceptionally 20 (lazy)
-    arg = Ranking(lambda: nrm_exc(10, 20, 1))
-    # Apply uncertain operation to uncertain argument using lazy_rlet_star (no flattening needed)
-    ranking = Ranking(lambda: rlet_star([
-        ('op', op),
-        ('arg', arg)
+    # Scenario 1: Deterministic addition
+    ranking1 = Ranking(lambda: [(5 + 10, 0)])
+    print_ranking("", ranking1)
+
+    # Scenario 2: Uncertain argument (normally 10, exceptionally 20)
+    arg2 = Ranking(lambda: nrm_exc(10, 20, 1))
+    ranking2 = Ranking(lambda: rlet_star([
+        ('arg', arg2)
+    ], lambda arg: 5 + arg))
+    print_ranking("", ranking2)
+
+    # Scenario 3: Uncertain op (normally +, exceptionally -) and uncertain arg
+    op3 = Ranking(lambda: nrm_exc(lambda x, y: x + y, lambda x, y: y - x, 1))
+    arg3 = Ranking(lambda: nrm_exc(10, 20, 1))
+    ranking3 = Ranking(lambda: rlet_star([
+        ('op', op3),
+        ('arg', arg3)
     ], lambda op, arg: op(5, arg)))
-    print("Ranked procedure call output (lazy):")
-    pr_all(ranking)
+    print_ranking("", ranking3)
 
 if __name__ == "__main__":
     ranked_procedure_call_example()
