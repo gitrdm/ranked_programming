@@ -26,12 +26,14 @@ def pr_all(lr, limit=10):
     print("...")
 
 def recur(x):
-    # Normally return x, exceptionally recur on x*2 (as Ranking)
+    # Iterative worklist version to avoid recursion depth issues
     def gen():
-        yield (x, 0)
-        if x <= 10000:  # Limit recursion to avoid RecursionError
-            for v, r in recur(x * 2):
-                yield (v, r + 1)
+        worklist = [(x, 0)]
+        while worklist:
+            val, rank = worklist.pop(0)
+            yield (val, rank)
+            if val <= 10000:  # Limit to avoid infinite loop for demo
+                worklist.append((val * 2, rank + 1))
     return Ranking(gen)
 
 def recursion_example():
