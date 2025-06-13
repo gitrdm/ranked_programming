@@ -13,34 +13,34 @@ Run this file to see the ranked output for the recursive scenario.
 """
 from ranked_programming.rp_core import Ranking, nrm_exc, observe
 
-def pr_all(lr):
+def pr_all(lr, limit=10):
     """Pretty-print all (value, rank) pairs from a Ranking."""
-    # No local flattening needed: lr is guaranteed to yield (value, rank) pairs
     items = list(lr)
     if not items:
         print("Failure (empty ranking)")
         return
     print("Rank  Value")
     print("------------")
-    for v, rank in items:
+    for v, rank in items[:limit]:
         print(f"{rank:>5} {v}")
-    print("Done")
+    print("...")
 
 def recur(x):
     # Normally return x, exceptionally recur on x*2 (as Ranking)
-    if x > 500:
-        return Ranking(lambda: ((x, 0),))
-    else:
-        def gen():
-            yield (x, 0)
+    def gen():
+        yield (x, 0)
+        if x <= 10000:  # Limit recursion to avoid RecursionError
             for v, r in recur(x * 2):
                 yield (v, r + 1)
-        return Ranking(gen)
+    return Ranking(gen)
 
 def recursion_example():
-    # Observe: value > 500 (lazy, no flattening needed)
-    ranking = Ranking(lambda: observe(lambda v: v > 500, recur(1)))
-    print("Recursion output ranking (values > 500, lazy):")
+    # Print the full ranking for recur(1) (no observation)
+    print("Full recursion ranking (recur(1)):")
+    pr_all(recur(1))
+    # Print the observed ranking for values > 100
+    print("\nObserved recursion ranking (values > 100):")
+    ranking = Ranking(lambda: observe(lambda v: v > 100, recur(1)))
     pr_all(ranking)
 
 if __name__ == "__main__":
