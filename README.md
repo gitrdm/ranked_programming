@@ -50,7 +50,7 @@ This approach has shown applications in:
 2. **Install dependencies (recommended: use conda):**
    ```bash
    conda env create -f environment.yml
-   conda activate ranked-programming-py
+   conda activate ranked-programming
    ```
    Or with pip:
    ```bash
