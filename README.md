@@ -2,6 +2,16 @@
 
 A Python library for ranked programming. Provides combinators and utilities for reasoning about uncertainty, surprise, and ranked choices in computation.
 
+## Important Note on Examples and Testing
+
+**All example files in the `examples/` directory are used as regression tests.**
+
+- If you add or modify an example file (e.g., `examples/hidden_markov.py`), you must ensure that its output remains consistent with the expected regression tests.
+- Regression tests in `tests/` will run these examples and check their output. If you change the output format or logic, update the corresponding regression test.
+- To add your own examples without affecting tests, use a different filename or directory, or disable regression checks for that file.
+
+This ensures that the core examples remain stable and that changes to the library do not unintentionally break expected behavior.
+
 ## Synopsis
 
 This project is a Python port of the code introduced in the paper "Ranked Programming" by Tjitze Rienstra. As mentioned in the paper, "Ranked Programming" is based on the philosophy of "Ranking Theory" as developed by Wolfgang Spohn. It explores a novel approach to modeling uncertainty that is not based on probability.
