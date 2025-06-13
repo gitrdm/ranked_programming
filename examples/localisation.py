@@ -21,8 +21,11 @@ def surrounding(s):
     ]
 
 def observable(s):
-    exceptional = [(cell, 1) for cell in surrounding(s)]
-    return nrm_exc(s, exceptional, 1)
+    def gen():
+        yield (s, 0)
+        for cell in surrounding(s):
+            yield (cell, 1)
+    return Ranking(gen)
 
 def hmm(obs_seq, initial_state=(0, 3)):
     if not obs_seq:
@@ -33,8 +36,10 @@ def hmm(obs_seq, initial_state=(0, 3)):
                 prev_state = prev_path[-1]
                 for s, move_rank in Ranking(lambda: [(n, 0) for n in neighbouring(prev_state)]):
                     for (o, obs_rank) in observable(s):
+                        print(f"DEBUG: prev_path={prev_path}, prev_state={prev_state}, s={s}, o={o}, obs_seq[-1]={obs_seq[-1]}, rank={prev_rank + move_rank + obs_rank}")
                         if o == obs_seq[-1]:
-                            yield (prev_path + [s], prev_rank + move_rank + obs_rank)
+                            debug_path = prev_path + [s]
+                            yield (debug_path, prev_rank + move_rank + obs_rank)
         return Ranking(generator)
 
 def localisation_example():

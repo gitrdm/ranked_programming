@@ -40,18 +40,18 @@ def emit(s):
         return Ranking(lambda: nrm_exc('no', 'yes', 1))
 
 def hmm(obs):
-    def helper(seq, rank, obs):
+    def helper(states, emissions, rank, obs):
         if not obs:
-            yield (seq, rank)
+            yield ((emissions, states), rank)
         else:
-            prev_state = seq[-1]
+            prev_state = states[-1]
             for next_state, t_rank in trans(prev_state):
                 for emission, e_rank in emit(next_state):
                     if emission == obs[0]:
-                        result = (seq + (next_state,), rank + t_rank + e_rank)
-                        logging.debug(f"obs={obs}, seq={seq}, rank={rank}, prev_state={prev_state}, next_state={next_state}, t_rank={t_rank}, emission={emission}, e_rank={e_rank}, result={result}")
-                        yield from helper(seq + (next_state,), rank + t_rank + e_rank, obs[1:])
-    return Ranking(lambda: (result for init_state, init_rank in init() for result in helper((init_state,), init_rank, obs)))
+                        result = (emissions + (emission,), states + (next_state,), rank + t_rank + e_rank)
+                        logging.debug(f"obs={obs}, states={states}, emissions={emissions}, rank={rank}, prev_state={prev_state}, next_state={next_state}, t_rank={t_rank}, emission={emission}, e_rank={e_rank}, result={result}")
+                        yield from helper(states + (next_state,), emissions + (emission,), rank + t_rank + e_rank, obs[1:])
+    return Ranking(lambda: (result for init_state, init_rank in init() for result in helper((init_state,), tuple(), init_rank, obs)))
 
 def print_hmm(obs):
     print(f"Hidden Markov Model output ranking for observations: {obs}")
