@@ -1,48 +1,54 @@
 """
-Literate Example: Robot Localisation (Python)
-
-This example demonstrates ranked programming for a simple robot localisation problem.
-
-- The robot can be in one of three locations: A, B, or C.
-- Initial belief: normally at A, exceptionally at B or C (using nested nrm_exc).
-- The robot moves: normally stays, exceptionally moves to the next location.
-- The sensor: normally correct, exceptionally reports 'unknown'.
-- rlet_star is used to model the sequence of states and observations, propagating uncertainty.
-- The output is a ranking of all possible (l0, l1, s1) tuples, ranked by plausibility.
-
-Note: All combinators yield only (value, rank) pairs as expected; no manual flattening is needed.
-
-Run this file to see the ranked output for the robot localisation scenario.
+Robot Localisation Example (Python, aligned to Racket)
 """
-from ranked_programming.rp_core import Ranking, nrm_exc, rlet_star, pr_all
+from ranked_programming.rp_core import Ranking, nrm_exc
+
+def neighbouring(s):
+    x, y = s
+    return [
+        (x - 1, y),
+        (x + 1, y),
+        (x, y - 1),
+        (x, y + 1)
+    ]
+
+def surrounding(s):
+    x, y = s
+    return [
+        (x - 1, y - 1), (x, y - 1), (x + 1, y - 1),
+        (x + 1, y), (x + 1, y + 1), (x, y + 1),
+        (x - 1, y + 1), (x - 1, y)
+    ]
+
+def observable(s):
+    exceptional = [(cell, 1) for cell in surrounding(s)]
+    return nrm_exc(s, exceptional, 1)
+
+def hmm(obs_seq, initial_state=(0, 3)):
+    if not obs_seq:
+        return Ranking(lambda: [([initial_state], 0)])
+    else:
+        def generator():
+            for prev_path, prev_rank in hmm(obs_seq[:-1], initial_state):
+                prev_state = prev_path[-1]
+                for s, move_rank in Ranking(lambda: [(n, 0) for n in neighbouring(prev_state)]):
+                    for (o, obs_rank) in observable(s):
+                        if o == obs_seq[-1]:
+                            yield (prev_path + [s], prev_rank + move_rank + obs_rank)
+        return Ranking(generator)
 
 def localisation_example():
-    # Locations: A, B, C
-    # Initial belief: normally at A, exceptionally at B or C (fully lazy, flat)
-    def initial():
-        yield ('A', 0)
-        yield ('B', 1)
-        yield ('C', 2)
-    initial_lr = Ranking(initial)
-    # Move: normally stays, exceptionally moves to next
-    def move(loc):
-        if loc == 'A':
-            return Ranking(lambda: nrm_exc('A', 'B', 1))
-        elif loc == 'B':
-            return Ranking(lambda: nrm_exc('B', 'C', 1))
-        else:
-            return Ranking(lambda: nrm_exc('C', 'A', 1))
-    # Sensor: normally correct, exceptionally wrong
-    def sense(loc):
-        return Ranking(lambda: nrm_exc(loc, 'unknown', 1))
-    # No flattening needed: all combinators yield (value, rank) pairs
-    ranking = Ranking(lambda: rlet_star([
-        ('l0', initial_lr),
-        ('l1', move),
-        ('s1', lambda l0, l1: sense(l1))
-    ], lambda l0, l1, s1: (l0, l1, s1)))
-    print("Robot localisation output ranking:")
-    pr_all(ranking)
+    # Canonical Racket observation sequence
+    obs_seq = [
+        (0, 3), (2, 3), (3, 3), (3, 2), (4, 1), (2, 1), (3, 0), (1, 0)
+    ]
+    ranking = hmm(obs_seq, initial_state=(0, 3))
+    print("Rank  Value\n------------")
+    results = sorted(ranking, key=lambda x: (x[1], x[0]))
+    for path, rank in results:
+        racket_path = "(" + " ".join(f"({x} {y})" for x, y in path) + ")"
+        print(f"{rank:<5} {racket_path}")
+    print("Done")
 
 if __name__ == "__main__":
     localisation_example()
