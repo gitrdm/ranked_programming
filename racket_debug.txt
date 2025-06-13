@@ -1,8 +1,0 @@
-cadr: contract violation
-  expected: (cons/c any/c pair?)
-  given: '(ranking-function . #<promise:...gramming/rp-core.rkt:287:6>)
-  context...:
-   /home/rdmerrio/gits/ranked_programming/examples/hidden_markov.rkt:21:0: hmm
-   /home/rdmerrio/gits/ranked_programming/examples/hidden_markov.rkt:50:0: main
-   body of (submod "/home/rdmerrio/gits/ranked_programming/examples/hidden_markov.rkt" main)
-[INFO] Running HMM with obs=(no no yes no no)
