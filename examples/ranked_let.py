@@ -29,7 +29,10 @@ def ranked_let_example():
 
     # Dependent uncertainty: peanut consumption depends on beer (lazy)
     def peanuts_depends_on_beer(b):
-        return Ranking(lambda: nrm_exc(True, False, 1)) if b else Ranking(lambda: nrm_exc(False, True, 1))
+        if b:
+            return Ranking(lambda: nrm_exc(True, False, 1))  # If beer, normally peanuts
+        else:
+            return Ranking(lambda: [(False, 0)])  # If no beer, always no peanuts
     print("\nDependent uncertainty (rlet_star):")
     pr_all(Ranking(lambda: rlet_star([
         ('b', b),
