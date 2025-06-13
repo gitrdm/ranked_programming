@@ -105,6 +105,8 @@ class Ranking(Iterable):
         generator_fn: Callable[[], Iterable[Tuple[Any, int]]]
             A function returning an iterable of (value, rank) pairs.
     """
+    __slots__ = ("_generator_fn",)
+
     def __init__(self, generator_fn: Callable[[], Iterable[Tuple[Any, int]]]):
         self._generator_fn = generator_fn
 
@@ -217,9 +219,14 @@ def nrm_exc(
         v2: Second value or Ranking/generator/iterable.
         rank2: Rank to assign to v2 (or its values).
 
+    Raises:
+        TypeError: If rank2 is not an int.
+
     Yields:
         Tuple[Any, int]: (value, rank) pairs.
     """
+    if not isinstance(rank2, int):
+        raise TypeError(f"rank2 must be int, got {type(rank2).__name__}")
     yielded = False
     for pair in _flatten_ranking_like(v1, 0):
         yield pair
