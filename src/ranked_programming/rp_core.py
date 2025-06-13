@@ -26,11 +26,11 @@ def _flatten_ranking_like(obj, rank_offset=0):
     if isinstance(obj, Ranking):
         for v, r in obj:
             yield (v, r + rank_offset)
-    elif isinstance(obj, types.GeneratorType) or (isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, dict))):
+    elif isinstance(obj, types.GeneratorType):
         try:
             it = iter(obj)
             first = next(it)
-            if isinstance(first, tuple) and len(first) == 2:
+            if isinstance(first, tuple) and len(first) == 2 and isinstance(first[1], (int, float)):
                 yield (first[0], first[1] + rank_offset)
                 for v, r in it:
                     yield (v, r + rank_offset)
@@ -40,6 +40,10 @@ def _flatten_ranking_like(obj, rank_offset=0):
                     yield (v, rank_offset)
         except StopIteration:
             return
+    elif isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, dict)):
+        # Only flatten if this is a Ranking or generator, otherwise treat as atomic
+        # This branch is for lists, sets, etc. Treat as atomic value
+        yield (obj, rank_offset)
     else:
         yield (obj, rank_offset)
 
