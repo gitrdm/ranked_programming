@@ -7,6 +7,15 @@ the new modular files (ranking_class, ranking_combinators, ranking_observe, rank
 
 New development and user code should prefer importing from `ranked_programming.rp_api` or
 the new modules directly. This file may be deprecated in the future.
+
+Exports:
+    - Ranking
+    - nrm_exc, rlet, rlet_star, either_of, ranked_apply
+    - observe, observe_e, observe_all
+    - limit, cut, pr_all, pr_first
+    - _flatten_ranking_like, _normalize_ranking (for advanced/legacy use)
+
+Note: Use double backticks (``) for any asterisk or special character in docstrings to avoid Sphinx warnings.
 """
 
 from .ranking_class import Ranking, _flatten_ranking_like, _normalize_ranking

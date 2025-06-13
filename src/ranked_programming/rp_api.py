@@ -8,6 +8,12 @@ from this module for a stable, documented interface:
     from ranked_programming import rp_api as rp
 
 This file is the recommended entry point for all new code and documentation.
+
+Exports:
+    - Ranking
+    - nrm_exc, rlet, rlet_star, either_of, ranked_apply
+    - observe, observe_e, observe_all
+    - limit, cut, pr_all, pr_first
 """
 from .ranking_class import Ranking
 from .ranking_combinators import nrm_exc, rlet, rlet_star, either_of, ranked_apply
