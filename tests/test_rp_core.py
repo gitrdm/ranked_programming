@@ -14,3 +14,23 @@ def test_ranking_slots():
     r = Ranking(lambda: [(1, 0)])
     with pytest.raises(AttributeError):
         r.foo = 42
+
+def test_ranked_apply_racket_examples():
+    from ranked_programming.rp_core import ranked_apply, nrm_exc, Ranking
+    # 1. Deterministic: ($ + 5 10)
+    result = list(ranked_apply(lambda x, y: x + y, 5, 10))
+    assert result == [(15, 0)]
+
+    # 2. Uncertain argument: ($ + 5 (nrm/exc 10 20))
+    arg = Ranking(lambda: nrm_exc(10, 20))
+    result = list(ranked_apply(lambda x, y: x + y, 5, arg))
+    assert (15, 0) in result and (25, 1) in result and len(result) == 2
+
+    # 3. Uncertain function and argument: ($ (nrm/exc + *) 5 (nrm/exc 10 20))
+    import operator
+    op = Ranking(lambda: nrm_exc(operator.add, operator.mul))
+    arg = Ranking(lambda: nrm_exc(10, 20))
+    result = list(ranked_apply(lambda f, x, y: f(x, y), op, 5, arg))
+    # Possible (value, rank): (15,0), (25,1), (50,1), (100,2)
+    expected = set([(15,0), (25,1), (50,1), (100,2)])
+    assert set(result) == expected

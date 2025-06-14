@@ -138,3 +138,23 @@ def test_invalid_input():
     ranking = Ranking(lambda: nrm_exc(dummy, dummy, 1))
     result = ranking.to_eager()
     assert (dummy, 0) in result and (dummy, 1) in result
+
+def test_rlet_racket_example():
+    # Racket example: beer and peanuts
+    from ranked_programming.rp_core import nrm_exc, rlet, Ranking
+    beer = Ranking(lambda: nrm_exc(False, True))
+    peanuts = Ranking(lambda: nrm_exc(True, False))
+    def body(b, p):
+        return f"{'beer' if b else 'no beer'} and {'peanuts' if p else 'no peanuts'}"
+    ranking = Ranking(lambda: rlet([
+        ('b', beer),
+        ('p', peanuts)
+    ], body))
+    result = set(ranking.to_eager())
+    expected = set([
+        ("no beer and peanuts", 0),
+        ("no beer and no peanuts", 1),
+        ("beer and peanuts", 1),
+        ("beer and no peanuts", 2)
+    ])
+    assert result == expected
