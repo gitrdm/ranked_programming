@@ -13,6 +13,11 @@ See the main API in `rp_api.py` for user-facing usage.
 """
 from typing import Any, Callable, Iterable, Tuple, Generator, Optional
 from collections.abc import Iterable as ABCIterable, Iterator
+import logging
+
+# Set up a module-level logger
+logger = logging.getLogger("ranked_programming.ranking_class")
+logger.addHandler(logging.NullHandler())
 
 def _flatten_ranking_like(obj: object, rank_offset: int = 0):
     """
@@ -26,20 +31,24 @@ def _flatten_ranking_like(obj: object, rank_offset: int = 0):
         Tuple[Any, int]: (value, rank) pairs.
     """
     import types
+    logger.debug(f"Flattening object: {repr(obj)} with rank_offset={rank_offset}")
     if isinstance(obj, Ranking):
         for v, r in obj:
+            logger.debug(f"Yield from Ranking: value={v}, rank={r} (offset={rank_offset})")
             yield (v, int(r) + rank_offset)
     elif isinstance(obj, types.GeneratorType):
         try:
             it = iter(obj)
             first = next(it)
         except StopIteration:
+            logger.debug("Generator is empty.")
             return
         if (
             isinstance(first, tuple)
             and len(first) == 2
             and isinstance(first[1], (int, float))
         ):
+            logger.debug(f"Yield from generator (tuple): {first}")
             yield (first[0], int(first[1]) + rank_offset)
             for item in it:
                 if (
@@ -47,16 +56,22 @@ def _flatten_ranking_like(obj: object, rank_offset: int = 0):
                     and len(item) == 2
                     and isinstance(item[1], (int, float))
                 ):
+                    logger.debug(f"Yield from generator (tuple): {item}")
                     yield (item[0], int(item[1]) + rank_offset)
                 else:
+                    logger.debug(f"Yield from generator (non-tuple): {item}")
                     yield (item, rank_offset)
         else:
+            logger.debug(f"Yield from generator (first): {first}")
             yield (first, rank_offset)
             for v in it:
+                logger.debug(f"Yield from generator (rest): {v}")
                 yield (v, rank_offset)
     elif isinstance(obj, (list, set, tuple)):
+        logger.debug(f"Yield atomic collection: {repr(obj)}")
         yield (obj, rank_offset)
     else:
+        logger.debug(f"Yield atomic value: {repr(obj)}")
         yield (obj, rank_offset)
 
 def _normalize_ranking(
@@ -65,6 +80,7 @@ def _normalize_ranking(
     evidence: Optional[int] = None,
     predicates: Optional[list[Callable[[Any], bool]]] = None
 ) -> list[Tuple[Any, int]]:
+    logger.debug(f"Normalizing ranking: {list(ranking)} pred={pred} evidence={evidence} predicates={predicates}")
     """
     Filter and normalize a ranking by predicates and evidence.
 

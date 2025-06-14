@@ -17,12 +17,18 @@ Note: Use double backticks (``) for any asterisk or special character in docstri
 from typing import Any, Callable, Iterable, Tuple, Generator
 import heapq
 from .ranking_class import Ranking, _flatten_ranking_like
+import logging
+
+# Set up a module-level logger
+logger = logging.getLogger("ranked_programming.ranking_combinators")
+logger.addHandler(logging.NullHandler())
 
 def nrm_exc(
     v1: object,
     v2: object,
     rank2: int = 1
 ) -> Generator[Tuple[Any, int], None, None]:
+    logger.info(f"nrm_exc called with v1={repr(v1)}, v2={repr(v2)}, rank2={rank2}")
     """
     Normal/exceptional choice combinator.
 
@@ -55,15 +61,17 @@ def nrm_exc(
         [("foo", 0), ("bar", 1), ("baz", 2), ("qux", 3)]
     """
     if not isinstance(rank2, int):
+        logger.error(f"rank2 must be int, got {type(rank2).__name__}")
         raise TypeError(f"rank2 must be int, got {type(rank2).__name__}")
     import types
-    # Special case: same atomic object
     atomic_types = (int, float, str, bool, type(None))
     if v1 is v2 and not isinstance(v1, (Ranking, types.GeneratorType, list, set, tuple)):
+        logger.debug(f"Special case: v1 is v2 and atomic: {repr(v1)}")
         yield (v1, 0)
         yield (v1, rank2)
         return
     items = list(_flatten_ranking_like(v1, 0)) + list(_flatten_ranking_like(v2, rank2))
+    logger.debug(f"Flattened items for nrm_exc: {items}")
     def is_hashable(x):
         try:
             hash(x)
@@ -75,12 +83,13 @@ def nrm_exc(
         if is_hashable(v):
             key = (v,)
             if key not in yielded_hashable:
-                # Find all ranks for this value
                 ranks = [rk for val, rk in items if is_hashable(val) and val == v]
                 min_rank = min(ranks)
+                logger.debug(f"Yield hashable: {v} at min_rank={min_rank}")
                 yield (v, min_rank)
                 yielded_hashable.add(key)
         else:
+            logger.debug(f"Yield unhashable: {v} at rank={r}")
             yield (v, r)
 
 def rlet_star(
@@ -100,6 +109,7 @@ def rlet_star(
     Yields:
         Tuple[Any, int]: (value, rank) pairs.
     """
+    logger.info(f"rlet_star called with bindings={bindings}")
     import inspect
     def to_ranking(val: object, env: tuple) -> Ranking:
         if isinstance(val, Ranking):
@@ -140,6 +150,7 @@ def rlet(
     Yields:
         Tuple[Any, int]: (value, rank) pairs.
     """
+    logger.info(f"rlet called with bindings={bindings}")
     def to_ranking(val: object) -> Ranking:
         if isinstance(val, Ranking):
             return val
@@ -170,6 +181,7 @@ def either_of(*rankings: Iterable[Tuple[Any, int]]) -> Generator[Tuple[Any, int]
     Yields:
         Tuple[Any, int]: (value, rank) pairs.
     """
+    logger.info(f"either_of called with {len(rankings)} rankings")
     heap = []
     iterators = [iter(r) for r in rankings]
     for idx, it in enumerate(iterators):
@@ -208,6 +220,7 @@ def ranked_apply(
     Yields:
         Tuple[Any, int]: (value, rank) pairs.
     """
+    logger.info(f"ranked_apply called with {len(args)} args")
     from itertools import product
     def to_ranking(x: object) -> Ranking:
         if isinstance(x, Ranking):
