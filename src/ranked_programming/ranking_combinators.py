@@ -21,8 +21,9 @@ Note: Use double backticks (``) for any asterisk or special character in docstri
 """
 from typing import Any, Callable, Iterable, Tuple, Generator
 import heapq
-from .ranking_class import Ranking, _flatten_ranking_like, as_ranking
+from .ranking_class import Ranking, _flatten_ranking_like, as_ranking, deduplicate_hashable
 import logging
+from itertools import chain
 
 # Set up a module-level logger
 logger = logging.getLogger("ranked_programming.ranking_combinators")
@@ -36,43 +37,28 @@ def nrm_exc(
     """
     Normal/exceptional choice combinator (lazy version).
 
-    Yields values from v1 at rank 0, then from v2 at rank2, deduplicating by minimal rank.
+    Yields values from v1 at rank 0, then from v2 at rank2, deduplicating by minimal rank for hashable values. Unhashable values are always yielded, even if repeated.
+
+    Args:
+        v1: The normal value(s) (any type, value or ranking).
+        v2: The exceptional value(s) (any type, value or ranking).
+        rank2: The rank (surprise) for v2 (must be int, default 1).
+
+    Raises:
+        TypeError: If rank2 is not an int.
+
     Supports lazy recursion and infinite structures.
     """
-    if not isinstance(rank2, int):
-        raise TypeError(f"rank2 must be int, got {type(rank2).__name__}")
-    # Special case: if v1 is v2 and both are atomic, yield both (v1, 0) and (v1, rank2)
     import types
-    atomic_types = (int, float, str, bool, type(None))
     if v1 is v2 and not isinstance(v1, (Ranking, types.GeneratorType, list, set, tuple)):
         yield (v1, 0)
         yield (v1, rank2)
         return
-    yielded_hashable = set()
-    # First yield from v1 at rank 0
-    for v, r in _flatten_ranking_like(v1, 0):
-        try:
-            hash(v)
-        except TypeError:
-            logger.debug(f"Yield unhashable from v1: {v!r} at rank={r}")
-            yield (v, r)
-        else:
-            if v not in yielded_hashable:
-                logger.debug(f"Yield hashable from v1: {v!r} at rank={r}")
-                yield (v, r)
-                yielded_hashable.add(v)
-    # Then yield from v2 at rank2, skipping values already yielded
-    for v, r in _flatten_ranking_like(v2, rank2):
-        try:
-            hash(v)
-        except TypeError:
-            logger.debug(f"Yield unhashable from v2: {v!r} at rank={r}")
-            yield (v, r)
-        else:
-            if v not in yielded_hashable:
-                logger.debug(f"Yield hashable from v2: {v!r} at rank={r}")
-                yield (v, r)
-                yielded_hashable.add(v)
+    if not isinstance(rank2, int):
+        raise TypeError(f"rank2 must be an int, got {type(rank2).__name__}")
+    yield from deduplicate_hashable(
+        chain(_flatten_ranking_like(v1, 0), _flatten_ranking_like(v2, rank2))
+    )
 
 def rlet_star(
     bindings: list[Tuple[str, object]],
