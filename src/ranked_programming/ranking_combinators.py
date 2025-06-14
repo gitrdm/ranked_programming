@@ -50,6 +50,13 @@ def nrm_exc(
         TypeError: If rank2 is not an int.
 
     Supports lazy recursion and infinite structures.
+
+    Example::
+
+        >>> list(nrm_exc("foo", "bar", 1))
+        [("foo", 0), ("bar", 1)]
+        >>> list(nrm_exc([1, 2], [3, 4], 2))
+        [(1, 0), (2, 0), (3, 2), (4, 2)]
     """
     import types
     if v1 is v2 and not isinstance(v1, (Ranking, types.GeneratorType, list, set, tuple)):
@@ -78,6 +85,13 @@ def rlet_star(
 
     Yields:
         Tuple[Any, int]: (value, rank) pairs.
+
+    Example::
+
+        >>> def f(x, y):
+        ...     return x + y
+        >>> list(rlet_star([('x', [1, 2]), ('y', lambda x: [x, x+1])], f))
+        [(2, 0), (3, 0), (3, 0), (4, 0)]
     """
     logger.info(f"rlet_star called with bindings={bindings}")
     def helper(idx: int, env: tuple, acc_rank: int):
@@ -108,6 +122,13 @@ def rlet(
 
     Yields:
         Tuple[Any, int]: (value, rank) pairs.
+
+    Example::
+
+        >>> def f(x, y):
+        ...     return x * y
+        >>> list(rlet([('x', [1, 2]), ('y', [10, 20])], f))
+        [(10, 0), (20, 0), (20, 0), (40, 0)]
     """
     logger.info(f"rlet called with bindings={bindings}")
     rankings = [as_ranking(val) for _, val in bindings]
@@ -131,6 +152,13 @@ def either_of(*rankings: Iterable[Tuple[Any, int]]) -> Generator[Tuple[Any, int]
 
     Yields:
         Tuple[Any, int]: (value, rank) pairs.
+
+    Example::
+
+        >>> r1 = [("a", 0), ("b", 1)]
+        >>> r2 = [("b", 0), ("c", 2)]
+        >>> list(either_of(r1, r2))
+        [("a", 0), ("b", 1), ("c", 2)]
     """
     logger.info(f"either_of called with {len(rankings)} rankings")
     heap = []
@@ -219,6 +247,13 @@ def ranked_apply(
 
     Yields:
         Tuple[Any, int]: (value, rank) pairs.
+
+    Example::
+
+        >>> def add(x, y):
+        ...     return x + y
+        >>> list(ranked_apply(add, [1, 2], [10, 20]))
+        [(11, 0), (21, 0), (12, 0), (22, 0)]
     """
     logger.info(f"ranked_apply called with {len(args)} args")
     from itertools import product
