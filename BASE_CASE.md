@@ -17,6 +17,7 @@ This file is intended to capture the core development standards and requirements
 - All public combinators must be exported from `rp_core.py` and documented in the Sphinx API docs.
 - Follow PEP8 and use `black` for code formatting.
 - Use descriptive commit messages and create feature branches for significant changes.
+- After logic changes, always commit your changes with a descriptive message and push to the remote repository (i.e., run `git commit` and `git push`).
 - Any additional requirements, coding standards, or project-specific rules should be added below.
 
 ## Additional Notes

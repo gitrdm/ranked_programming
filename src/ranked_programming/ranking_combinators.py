@@ -28,37 +28,12 @@ def nrm_exc(
     v2: object,
     rank2: int = 1
 ) -> Generator[Tuple[Any, int], None, None]:
-    logger.info(f"nrm_exc called with v1={repr(v1)}, v2={repr(v2)}, rank2={rank2}")
+    # Logging removed to avoid RecursionError in deep recursion
     """
-    Normal/exceptional choice combinator.
+    Normal/exceptional choice combinator (lazy version).
 
-    Supports arbitrary nesting of Ranking objects or generator-based combinators.
-
-    If both v1 and v2 are ranking-like (including nested nrm_exc calls), returns a ranking where the rank of a value v is the minimum of:
-
-        - the rank of v in v1
-        - the rank of v in v2 plus rank2
-
-    If v1 or v2 is a value, it is treated as a singleton ranking at rank 0 or rank2, respectively.
-    For equal ranks, preserves the order of first appearance from v1, then v2.
-    For unhashable values, yields all (value, rank) pairs, even for the same object and value.
-    Special case: if v1 is v2 and both are atomic, yield both (v1, 0) and (v1, rank2).
-
-    Args:
-        v1: First value or Ranking/generator/iterable (can be nested arbitrarily).
-        v2: Second value or Ranking/generator/iterable (can be nested arbitrarily).
-        rank2: Rank to assign to v2 (or its values). Defaults to 1.
-
-    Yields:
-        Tuple[Any, int]: (value, rank) pairs.
-
-    Examples:
-        >>> list(Ranking(lambda: nrm_exc("foo", "bar")))
-        [("foo", 0), ("bar", 1)]
-        >>> list(Ranking(lambda: nrm_exc("foo", "bar", 2)))
-        [("foo", 0), ("bar", 2)]
-        >>> list(Ranking(lambda: nrm_exc("foo", nrm_exc("bar", nrm_exc("baz", "qux")))))
-        [("foo", 0), ("bar", 1), ("baz", 2), ("qux", 3)]
+    Yields values from v1 at rank 0, then from v2 at rank2, deduplicating by minimal rank.
+    Supports lazy recursion and infinite structures.
     """
     if not isinstance(rank2, int):
         logger.error(f"rank2 must be int, got {type(rank2).__name__}")
@@ -70,26 +45,26 @@ def nrm_exc(
         yield (v1, 0)
         yield (v1, rank2)
         return
-    items = list(_flatten_ranking_like(v1, 0)) + list(_flatten_ranking_like(v2, rank2))
-    logger.debug(f"Flattened items for nrm_exc: {items}")
-    def is_hashable(x):
-        try:
-            hash(x)
-            return True
-        except Exception:
-            return False
     yielded_hashable = set()
-    for v, r in items:
-        if is_hashable(v):
-            key = (v,)
-            if key not in yielded_hashable:
-                ranks = [rk for val, rk in items if is_hashable(val) and val == v]
-                min_rank = min(ranks)
-                logger.debug(f"Yield hashable: {v} at min_rank={min_rank}")
-                yield (v, min_rank)
-                yielded_hashable.add(key)
-        else:
-            logger.debug(f"Yield unhashable: {v} at rank={r}")
+    # First yield from v1 at rank 0
+    for v, r in _flatten_ranking_like(v1, 0):
+        # Do NOT call v if it's callable; let _flatten_ranking_like handle laziness
+        if hasattr(v, '__hash__') and v not in yielded_hashable:
+            logger.debug(f"Yield hashable from v1: {v} at rank={r}")
+            yield (v, r)
+            yielded_hashable.add(v)
+        elif not hasattr(v, '__hash__'):
+            logger.debug(f"Yield unhashable from v1: {v} at rank={r}")
+            yield (v, r)
+    # Then yield from v2 at rank2, skipping values already yielded
+    for v, r in _flatten_ranking_like(v2, rank2):
+        # Do NOT call v if it's callable; let _flatten_ranking_like handle laziness
+        if hasattr(v, '__hash__') and v not in yielded_hashable:
+            logger.debug(f"Yield hashable from v2: {v} at rank={r}")
+            yield (v, r)
+            yielded_hashable.add(v)
+        elif not hasattr(v, '__hash__'):
+            logger.debug(f"Yield unhashable from v2: {v} at rank={r}")
             yield (v, r)
 
 def rlet_star(

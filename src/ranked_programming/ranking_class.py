@@ -24,31 +24,42 @@ def _flatten_ranking_like(obj: object, rank_offset: int = 0):
     Flatten a Ranking, generator, or iterable into (value, rank) pairs, applying a rank offset.
 
     Args:
-        obj: Ranking, generator, iterable, or atomic value.
+        obj: Ranking, generator, iterable, callable, or atomic value.
         rank_offset: Integer to add to all yielded ranks.
 
     Yields:
         Tuple[Any, int]: (value, rank) pairs.
     """
     import types
-    logger.debug(f"Flattening object: {repr(obj)} with rank_offset={rank_offset}")
+    # logger.debug(f"Flattening object: {repr(obj)} with rank_offset={rank_offset}")
+    # Handle Ranking first to avoid treating it as a generic callable
     if isinstance(obj, Ranking):
         for v, r in obj:
-            logger.debug(f"Yield from Ranking: value={v}, rank={r} (offset={rank_offset})")
+            # logger.debug(f"Yield from Ranking: value={v}, rank={r} (offset={rank_offset})")
             yield (v, int(r) + rank_offset)
+    # Lazily evaluate only zero-argument callables (thunks), not all callables
+    elif callable(obj) and not isinstance(obj, (str, bytes)):
+        import inspect
+        sig = inspect.signature(obj)
+        if len(sig.parameters) == 0:
+            # logger.debug(f"Calling lazy zero-arg callable: {repr(obj)}")
+            yield from _flatten_ranking_like(obj(), rank_offset)
+        else:
+            # logger.debug(f"Yield atomic non-thunk callable: {repr(obj)}")
+            yield (obj, rank_offset)
     elif isinstance(obj, types.GeneratorType):
         try:
             it = iter(obj)
             first = next(it)
         except StopIteration:
-            logger.debug("Generator is empty.")
+            # logger.debug("Generator is empty.")
             return
         if (
             isinstance(first, tuple)
             and len(first) == 2
             and isinstance(first[1], (int, float))
         ):
-            logger.debug(f"Yield from generator (tuple): {first}")
+            # logger.debug(f"Yield from generator (tuple): {first}")
             yield (first[0], int(first[1]) + rank_offset)
             for item in it:
                 if (
@@ -56,22 +67,22 @@ def _flatten_ranking_like(obj: object, rank_offset: int = 0):
                     and len(item) == 2
                     and isinstance(item[1], (int, float))
                 ):
-                    logger.debug(f"Yield from generator (tuple): {item}")
+                    # logger.debug(f"Yield from generator (tuple): {item}")
                     yield (item[0], int(item[1]) + rank_offset)
                 else:
-                    logger.debug(f"Yield from generator (non-tuple): {item}")
+                    # logger.debug(f"Yield from generator (non-tuple): {item}")
                     yield (item, rank_offset)
         else:
-            logger.debug(f"Yield from generator (first): {first}")
+            # logger.debug(f"Yield from generator (first): {first}")
             yield (first, rank_offset)
             for v in it:
-                logger.debug(f"Yield from generator (rest): {v}")
+                # logger.debug(f"Yield from generator (rest): {v}")
                 yield (v, rank_offset)
     elif isinstance(obj, (list, set, tuple)):
-        logger.debug(f"Yield atomic collection: {repr(obj)}")
+        # logger.debug(f"Yield atomic collection: {repr(obj)}")
         yield (obj, rank_offset)
     else:
-        logger.debug(f"Yield atomic value: {repr(obj)}")
+        # logger.debug(f"Yield atomic value: {repr(obj)}")
         yield (obj, rank_offset)
 
 def _normalize_ranking(
@@ -80,7 +91,7 @@ def _normalize_ranking(
     evidence: Optional[int] = None,
     predicates: Optional[list[Callable[[Any], bool]]] = None
 ) -> list[Tuple[Any, int]]:
-    logger.debug(f"Normalizing ranking: {list(ranking)} pred={pred} evidence={evidence} predicates={predicates}")
+    # logger.debug(f"Normalizing ranking: {list(ranking)} pred={pred} evidence={evidence} predicates={predicates}")
     """
     Filter and normalize a ranking by predicates and evidence.
 
