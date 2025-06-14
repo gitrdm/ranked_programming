@@ -8,8 +8,11 @@ utilities in the library are built on this class.
 - `Ranking`: A lazy, generator-based abstraction for ranked search spaces.
 - `_flatten_ranking_like`: Internal utility to flatten nested rankings, generators, or atomic values.
 - `_normalize_ranking`: Internal utility to filter and normalize rankings by predicates and evidence.
+- `deduplicate_hashable`: Lazily deduplicate (value, rank) pairs by value, always enabled for all combinators. Hashable values are yielded only once (with minimal rank); unhashable values are always yielded, even if repeated. See the docstring for details.
 
-See the main API in `rp_api.py` for user-facing usage.
+**Deduplication is always enabled and not user-configurable in this implementation.**
+
+See the main API in `rp_api.py` for user-facing usage. See the Python reference and Sphinx docs for more on deduplication and ranking semantics.
 """
 from typing import Any, Callable, Iterable, Tuple, Generator, Optional
 from collections.abc import Iterable as ABCIterable, Iterator
@@ -235,3 +238,45 @@ class Ranking(Iterable):
             return f"<Ranking: {n} items {preview}>"
         else:
             return f"<Ranking: {n} items {preview} ...>"
+def as_ranking(val: object, env: tuple = ()) -> Ranking:
+    """
+    Convert a value, callable, or Ranking to a Ranking object.
+    If val is callable, calls it with as many arguments as env provides.
+    """
+    import inspect
+    if isinstance(val, Ranking):
+        return val
+    elif callable(val):
+        sig = inspect.signature(val)
+        n_args = len(sig.parameters)
+        result = val(*env[:n_args])
+        return Ranking(lambda: _flatten_ranking_like(result, 0))
+    else:
+        return Ranking(lambda: _flatten_ranking_like(val, 0))
+
+def deduplicate_hashable(iterable):
+    """
+    Lazily deduplicate (value, rank) pairs by value, keeping only the first occurrence of each hashable value.
+
+    - Hashable values are yielded only once (the first time they appear), regardless of rank.
+    - Unhashable values (e.g., lists, dicts) are always yielded, even if repeated.
+    - This function is used by all core combinators to ensure that rankings do not contain duplicate values with different ranks.
+    - Deduplication is always enabled and not user-configurable in this implementation.
+    - The function is fully lazy: it does not materialize the input, and works with infinite/lazy generators.
+
+    Args:
+        iterable: An iterable of (value, rank) pairs.
+
+    Yields:
+        (value, rank) pairs, with hashable values deduplicated by value.
+    """
+    seen = set()
+    for v, r in iterable:
+        try:
+            hash(v)
+        except TypeError:
+            yield (v, r)
+        else:
+            if v not in seen:
+                yield (v, r)
+                seen.add(v)
