@@ -158,3 +158,27 @@ def test_rlet_racket_example():
         ("beer and no peanuts", 2)
     ])
     assert result == expected
+
+def test_rlet_star_racket_example():
+    # Racket example: beer and peanuts, dependent
+    from ranked_programming.rp_core import nrm_exc, rlet_star, Ranking
+    def beer():
+        return Ranking(lambda: nrm_exc(False, True))
+    def peanuts(b):
+        if b:
+            return Ranking(lambda: nrm_exc(True, False))
+        else:
+            return False
+    def body(b, p):
+        return f"{'beer' if b else 'no beer'} and {'peanuts' if p else 'no peanuts'}"
+    ranking = Ranking(lambda: rlet_star([
+        ('b', beer()),
+        ('p', peanuts)
+    ], body))
+    result = set(ranking.to_eager())
+    expected = set([
+        ("no beer and no peanuts", 0),
+        ("beer and peanuts", 1),
+        ("beer and no peanuts", 2)
+    ])
+    assert result == expected
