@@ -60,14 +60,19 @@ def nrm_exc(
     """
     import types
     if v1 is v2 and not isinstance(v1, (Ranking, types.GeneratorType, list, set, tuple)):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"nrm_exc: yielding {v1!r} at ranks 0 and {rank2}")
         yield (v1, 0)
         yield (v1, rank2)
         return
     if not isinstance(rank2, int):
         raise TypeError(f"rank2 must be an int, got {type(rank2).__name__}")
-    yield from deduplicate_hashable(
+    for v, r in deduplicate_hashable(
         chain(_flatten_ranking_like(v1, 0), _flatten_ranking_like(v2, rank2))
-    )
+    ):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"nrm_exc: yielding {v!r} at rank {r}")
+        yield (v, r)
 
 def rlet_star(
     bindings: list[Tuple[str, object]],
@@ -98,16 +103,21 @@ def rlet_star(
     for b in bindings:
         if not (isinstance(b, tuple) and len(b) == 2 and isinstance(b[0], str)):
             raise TypeError("Each binding must be a (str, value/function) tuple")
-    logger.info(f"rlet_star called with bindings={bindings}")
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(f"rlet_star: starting with bindings={bindings}")
     def helper(idx: int, env: tuple, acc_rank: int):
         if idx == len(bindings):
             result = body(*env)
             for v, r in _flatten_ranking_like(result, acc_rank):
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(f"rlet_star: yielding {v!r} at rank {r}")
                 yield (v, r)
             return
         name, val = bindings[idx]
         ranking = as_ranking(val, env)
         for v, r in ranking:
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"rlet_star: binding {name}={v!r} at rank {r}")
             yield from helper(idx + 1, env + (v,), acc_rank + r)
     return helper(0, tuple(), 0)
 
@@ -140,7 +150,8 @@ def rlet(
     for b in bindings:
         if not (isinstance(b, tuple) and len(b) == 2 and isinstance(b[0], str)):
             raise TypeError("Each binding must be a (str, value/function) tuple")
-    logger.info(f"rlet called with bindings={bindings}")
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(f"rlet: starting with bindings={bindings}")
     rankings = [as_ranking(val) for _, val in bindings]
     from itertools import product
     for combo in product(*rankings):
@@ -148,6 +159,8 @@ def rlet(
         total_rank = sum(r for _, r in combo)
         result = body(*values)
         for v, r in _flatten_ranking_like(result, total_rank):
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"rlet: yielding {v!r} at rank {r}")
             yield (v, r)
 
 def either_of(*rankings: Iterable[Tuple[Any, int]]) -> Generator[Tuple[Any, int], None, None]:
@@ -183,6 +196,8 @@ def either_of(*rankings: Iterable[Tuple[Any, int]]) -> Generator[Tuple[Any, int]
     while heap:
         r, idx, v, it = heapq.heappop(heap)
         if v not in seen:
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"either_of: yielding {v!r} at rank {r}")
             yield (v, r)
             seen.add(v)
         try:
@@ -273,6 +288,8 @@ def ranked_apply(
         total_rank = sum(r for _, r in combo)
         result = f(*values)
         for v, r in _flatten_ranking_like(result, total_rank):
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"ranked_apply: yielding {v!r} at rank {r}")
             yield (v, r)
 
 def bang(v: Any) -> Generator[Tuple[Any, int], None, None]:
