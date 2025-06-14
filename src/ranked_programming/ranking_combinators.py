@@ -12,6 +12,11 @@ search spaces. These include:
 
 All combinators operate lazily and are compatible with the `Ranking` abstraction.
 
+.. note::
+
+   **Deduplication setting:**
+   Deduplication of values (keeping only the minimal rank for each value) is always enabled in the current implementation. A global deduplication setting, as in the Racket version, was considered but not implemented at this time. If needed in the future, a global variable and setter (e.g., ``set_global_dedup(enabled: bool)``) could be introduced, and all combinators updated to respect this setting. This would allow users to trade off between memory/performance and duplicate handling.
+
 Note: Use double backticks (``) for any asterisk or special character in docstrings to avoid Sphinx warnings.
 """
 from typing import Any, Callable, Iterable, Tuple, Generator
