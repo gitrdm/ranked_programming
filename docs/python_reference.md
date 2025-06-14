@@ -109,6 +109,18 @@ All are described in detail in the reference documentation and code docstrings.
 
 ---
 
+### Deduplication of Values
+
+All core combinators in this library automatically deduplicate values by their hashable identity, always keeping only the first occurrence (with the minimal rank) for each hashable value. This deduplication is always enabled and is not user-configurable. Unhashable values (such as lists or dicts) are always yielded, even if repeated.
+
+- **Why?** This ensures that rankings represent sets of possible outcomes, not multisets, and that the minimal rank for each value is preserved.
+- **How?** Deduplication is performed lazily as values are generated, so infinite/lazy structures are supported.
+- **Implication:** If you need to allow duplicate values with different ranks, you must use unhashable types or modify the library.
+
+For more details, see the `deduplicate_hashable` utility in the code and the combinator docstrings.
+
+---
+
 ## Reference
 
 See the Python docstrings and Sphinx documentation for detailed reference on each combinator and utility function.
