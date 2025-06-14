@@ -34,6 +34,17 @@ from itertools import chain
 logger = logging.getLogger("ranked_programming.ranking_combinators")
 logger.addHandler(logging.NullHandler())
 
+def _validate_bindings(bindings):
+    """
+    Utility to validate a list of (name, value/function) pairs for rlet and rlet_star.
+    Raises TypeError if invalid.
+    """
+    if not isinstance(bindings, list):
+        raise TypeError("bindings must be a list of (name, value/function) pairs")
+    for b in bindings:
+        if not (isinstance(b, tuple) and len(b) == 2 and isinstance(b[0], str)):
+            raise TypeError("Each binding must be a (str, value/function) tuple")
+
 def nrm_exc(
     v1: object,
     v2: object,
@@ -42,6 +53,7 @@ def nrm_exc(
     """
     Normal/exceptional choice combinator (lazy version).
 
+    Accepts any value, iterable, or Ranking for v1 and v2. All inputs are normalized automatically.
     Yields values from v1 at rank 0, then from v2 at rank2, deduplicating by minimal rank for hashable values. Unhashable values are always yielded, even if repeated.
 
     Args:
@@ -77,6 +89,7 @@ def nrm_exc(
             logger.debug(f"nrm_exc: yielding {v!r} at rank {r}")
         yield (v, r)
 
+
 def rlet_star(
     bindings: list[Tuple[str, object]],
     body: Callable[..., object]
@@ -84,7 +97,7 @@ def rlet_star(
     """
     Sequential dependent bindings (lazy, like Scheme's ``let*``).
 
-    Each binding can be a value, a Ranking, or a function of previous variables returning a generator or Ranking.
+    Each binding can be a value, a Ranking, or a function of previous variables returning a generator or Ranking. All inputs are normalized automatically.
     The body can return a value, a Ranking, or a generator; all are automatically flattened.
 
     Args:
@@ -101,11 +114,7 @@ def rlet_star(
         >>> list(rlet_star([('x', [1, 2]), ('y', lambda x: [x, x+1])], f))
         [(2, 0), (3, 0), (3, 0), (4, 0)]
     """
-    if not isinstance(bindings, list):
-        raise TypeError("bindings must be a list of (name, value/function) pairs")
-    for b in bindings:
-        if not (isinstance(b, tuple) and len(b) == 2 and isinstance(b[0], str)):
-            raise TypeError("Each binding must be a (str, value/function) tuple")
+    _validate_bindings(bindings)
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug(f"rlet_star: starting with bindings={bindings}")
     def helper(idx: int, env: tuple, acc_rank: int):
@@ -124,6 +133,7 @@ def rlet_star(
             yield from helper(idx + 1, env + (v,), acc_rank + r)
     return helper(0, tuple(), 0)
 
+
 def rlet(
     bindings: list[Tuple[str, object]],
     body: Callable[..., object]
@@ -131,7 +141,7 @@ def rlet(
     """
     Parallel (cartesian product) bindings (lazy, like Scheme's let).
 
-    Each binding can be a value, a Ranking, or a function of no arguments returning a generator or Ranking.
+    Each binding can be a value, a Ranking, or a function of no arguments returning a generator or Ranking. All inputs are normalized automatically.
     Yields (body(values), total_rank) lazily for each combination.
 
     Args:
@@ -148,11 +158,7 @@ def rlet(
         >>> list(rlet([('x', [1, 2]), ('y', [10, 20])], f))
         [(10, 0), (20, 0), (20, 0), (40, 0)]
     """
-    if not isinstance(bindings, list):
-        raise TypeError("bindings must be a list of (name, value/function) pairs")
-    for b in bindings:
-        if not (isinstance(b, tuple) and len(b) == 2 and isinstance(b[0], str)):
-            raise TypeError("Each binding must be a (str, value/function) tuple")
+    _validate_bindings(bindings)
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug(f"rlet: starting with bindings={bindings}")
     rankings = [as_ranking(val) for _, val in bindings]
@@ -166,10 +172,25 @@ def rlet(
                 logger.debug(f"rlet: yielding {v!r} at rank {r}")
             yield (v, r)
 
-def either_of(*rankings: Iterable[Tuple[Any, int]]) -> Generator[Tuple[Any, int], None, None]:
+
+def _as_ranking_or_pairs(val, env=()):
+    """
+    Like as_ranking, but if val is a list/tuple/set of (value, rank) pairs, treat as a ranking, not atomic.
+    """
+    import collections.abc
+    if isinstance(val, (list, tuple, set)) and val and all(
+        isinstance(x, tuple) and len(x) == 2 and isinstance(x[1], int)
+        for x in val
+    ):
+        return Ranking(lambda: (x for x in val))
+    else:
+        return as_ranking(val, env)
+
+def either_of(*rankings: object) -> Generator[Tuple[Any, int], None, None]:
     """
     Lazy union of any number of Ranking objects, yielding values in order of minimal rank.
 
+    Each argument can be a value, iterable of (value, rank) pairs, or Ranking. All inputs are normalized automatically. Lists/tuples/sets of (value, rank) pairs are treated as rankings, not atomic values.
     For duplicate values, keep the lowest rank (first occurrence wins).
     Always yields values in the order of minimal rank, deduplicating on the fly.
 
@@ -187,8 +208,10 @@ def either_of(*rankings: Iterable[Tuple[Any, int]]) -> Generator[Tuple[Any, int]
         [("a", 0), ("b", 1), ("c", 2)]
     """
     logger.info(f"either_of called with {len(rankings)} rankings")
+    # Normalize all arguments to rankings, treating lists/tuples/sets of (value, rank) pairs as rankings
+    normalized = [_as_ranking_or_pairs(r) for r in rankings]
     heap = []
-    iterators = [iter(r) for r in rankings]
+    iterators = [iter(r) for r in normalized]
     for idx, it in enumerate(iterators):
         try:
             v, r = next(it)
@@ -209,9 +232,12 @@ def either_of(*rankings: Iterable[Tuple[Any, int]]) -> Generator[Tuple[Any, int]
         except StopIteration:
             continue
 
+
 def either_or(*ks: object, base_rank: int = 1) -> Generator[Tuple[Any, int], None, None]:
     """
     Returns a ranking where all arguments are equally surprising (same rank), or, if arguments are rankings, the rank of a value is the minimum among the ranks from the arguments.
+
+    Each argument can be a value, iterable of (value, rank) pairs, or Ranking. All inputs are normalized automatically. Lists/tuples/sets of (value, rank) pairs are treated as rankings, not atomic values.
 
     Args:
         ks: Values or rankings.
@@ -235,10 +261,9 @@ def either_or(*ks: object, base_rank: int = 1) -> Generator[Tuple[Any, int], Non
         >>> list(either_or(r1, r2))
         [("peter", 0), ("bob", 0), ("ann", 1), ("charly", 1)]
     """
-    from .ranking_class import Ranking, _flatten_ranking_like
     import types
-    # If all arguments are atomic (not Ranking, not generator, not callable), treat as equally surprising at base_rank
     atomic_types = (int, float, str, bool, type(None))
+    # If all arguments are atomic (not Ranking, not generator, not callable), treat as equally surprising at base_rank
     if all(
         not isinstance(k, (Ranking, types.GeneratorType, list, set, tuple)) and not callable(k)
         for k in ks
@@ -253,10 +278,11 @@ def either_or(*ks: object, base_rank: int = 1) -> Generator[Tuple[Any, int], Non
     from collections import defaultdict
     value_to_rank = defaultdict(list)
     for k in ks:
-        for v, r in _flatten_ranking_like(k, 0):
+        for v, r in _as_ranking_or_pairs(k):
             value_to_rank[v].append(r)
     for v, ranks in value_to_rank.items():
         yield (v, min(ranks))
+
 
 def ranked_apply(
     f: Callable[..., object],
@@ -295,6 +321,7 @@ def ranked_apply(
                 logger.debug(f"ranked_apply: yielding {v!r} at rank {r}")
             yield (v, r)
 
+
 def bang(v: Any) -> Generator[Tuple[Any, int], None, None]:
     """
     Truth function: Returns a ranking where v is ranked 0 and anything else is ranked infinity.
@@ -311,6 +338,7 @@ def bang(v: Any) -> Generator[Tuple[Any, int], None, None]:
         [(5, 0)]
     """
     yield (v, 0)
+
 
 def construct_ranking(*pairs: Tuple[Any, int]) -> Generator[Tuple[Any, int], None, None]:
     """
@@ -343,6 +371,7 @@ def construct_ranking(*pairs: Tuple[Any, int]) -> Generator[Tuple[Any, int], Non
         yield (v, r)
         prev_rank = r
 
+
 def rank_of(pred: Callable[[Any], bool], k: Iterable[Tuple[Any, int]]) -> Optional[int]:
     """
     Returns the minimal rank of a value in ranking k for which pred(value) is True.
@@ -367,6 +396,7 @@ def rank_of(pred: Callable[[Any], bool], k: Iterable[Tuple[Any, int]]) -> Option
             return r
     return None
 
+
 def failure() -> Generator[Tuple[Any, int], None, None]:
     """
     Returns an empty ranking (no values).
@@ -381,6 +411,7 @@ def failure() -> Generator[Tuple[Any, int], None, None]:
     """
     return
     yield  # This is never reached, but makes this a generator
+
 
 def rf_equal(k1: Iterable[Tuple[Any, int]], k2: Iterable[Tuple[Any, int]], max_items: int = 1000) -> bool:
     """
@@ -406,6 +437,7 @@ def rf_equal(k1: Iterable[Tuple[Any, int]], k2: Iterable[Tuple[Any, int]], max_i
     s2 = to_set(k2)
     return s1 == s2
 
+
 def rf_to_hash(k: Iterable[Tuple[Any, int]], max_items: int = 1000) -> Dict[Any, int]:
     """
     Converts a ranking k to a dict mapping each finitely ranked value to its rank.
@@ -422,6 +454,7 @@ def rf_to_hash(k: Iterable[Tuple[Any, int]], max_items: int = 1000) -> Dict[Any,
             break
         result[v] = r
     return result
+
 
 def rf_to_assoc(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -> List[Tuple[Any, int]]:
     """
@@ -442,6 +475,7 @@ def rf_to_assoc(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -
                 break
             items.append(x)
     return sorted(items, key=lambda vr: vr[1])
+
 
 def rf_to_stream(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -> Generator[Tuple[Any, int], None, None]:
     """

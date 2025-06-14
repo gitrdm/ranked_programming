@@ -138,6 +138,21 @@ For more details, see the module docstrings and code comments.
 
 ---
 
+### Input Normalization and API Consistency
+
+All core combinators in this library accept arguments that may be atomic values, iterables of (value, rank) pairs, or `Ranking` objects. All such inputs are automatically normalized to a standard ranking form using the `as_ranking` utility. This means you can freely mix values, lists, generators, or `Ranking` objects as arguments to any combinator, and the library will handle them consistently.
+
+- **Values** (e.g., strings, numbers) are implicitly treated as `bang(value)` (rank 0).
+- **Iterables** of (value, rank) pairs are treated as rankings.
+- **Ranking objects** are used as-is.
+- **Callables** (functions) are called with the appropriate environment (for `rlet_star` and `rlet`).
+
+#### Special notes:
+- For `rlet` and `rlet_star`, bindings must be a list of `(name, value/function)` pairs. Each value/function is normalized as above. For `rlet_star`, functions may take arguments corresponding to previous bindings.
+- If a combinator has any special input handling or restrictions, this is documented in its docstring and below.
+
+This normalization ensures API consistency and usability across all combinators. See the code docstrings for details and examples.
+
 ## Reference
 
 See the Python docstrings and Sphinx documentation for detailed reference on each combinator and utility function.
