@@ -326,3 +326,18 @@ def rank_of(pred, k):
         if pred(v):
             return r
     return None
+
+def failure():
+    """
+    Returns an empty ranking (no values).
+
+    Returns:
+        generator: An empty generator.
+
+    Example::
+
+        >>> list(failure())
+        []
+    """
+    return
+    yield  # This is never reached, but makes this a generator
