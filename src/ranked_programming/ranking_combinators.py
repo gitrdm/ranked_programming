@@ -14,8 +14,10 @@ All combinators operate lazily and are compatible with the `Ranking` abstraction
 
 .. note::
 
-   **Deduplication setting:**
-   Deduplication of values (keeping only the minimal rank for each value) is always enabled in the current implementation. A global deduplication setting, as in the Racket version, was considered but not implemented at this time. If needed in the future, a global variable and setter (e.g., ``set_global_dedup(enabled: bool)``) could be introduced, and all combinators updated to respect this setting. This would allow users to trade off between memory/performance and duplicate handling.
+   **Deduplication policy:**
+   All combinators in this module always deduplicate values by their hashable identity, keeping only the first occurrence (with the minimal rank) for each hashable value. Unhashable values (such as lists or dicts) are always yielded, even if repeated. This deduplication is always enabled and is not user-configurable. Deduplication is performed lazily as values are generated, so infinite/lazy structures are supported. See the Python reference and `deduplicate_hashable` utility for details.
+
+   If you need to allow duplicate values with different ranks, you must use unhashable types or modify the library.
 
 Note: Use double backticks (``) for any asterisk or special character in docstrings to avoid Sphinx warnings.
 """
