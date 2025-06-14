@@ -112,6 +112,25 @@ class Ranking(Iterable):
             generator_fn: Callable returning an iterable of (value, rank) pairs.
         """
         self._generator_fn = generator_fn
+    @classmethod
+    def from_generator(cls, gen_func: Callable, *args, **kwargs) -> 'Ranking':
+        """
+        Construct a Ranking from a generator function and its arguments.
+
+        Args:
+            gen_func: A generator function (e.g., ``nrm_exc``, ``rlet``, etc.).
+            ``*args``: Positional arguments for the generator function.
+            ``**kwargs``: Keyword arguments for the generator function.
+
+        Returns:
+            Ranking: A new Ranking instance wrapping the generator.
+
+        Example::
+
+            Ranking.from_generator(nrm_exc, "foo", "bar")
+            # Equivalent to Ranking(lambda: nrm_exc("foo", "bar"))
+        """
+        return cls(lambda: gen_func(*args, **kwargs))
     def __iter__(self) -> Iterator[Tuple[Any, int]]:
         """
         Iterate over (value, rank) pairs lazily.
