@@ -333,3 +333,25 @@ def test_rf_to_assoc_and_stream():
     stream2 = rf_to_stream(r_inf2, max_items=5)
     prefix = list(stream2)
     assert prefix == [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
+
+def test_observe_r_and_e_x():
+    from ranked_programming.rp_core import Ranking, nrm_exc, observe_r, observe_e_x
+    # Simple ranking: 1 at 0, 2 at 1, 3 at 2
+    r = Ranking(lambda: [(1, 0), (2, 1), (3, 2)])
+    # observe_r: penalize values not >1 by 5
+    result = list(observe_r(5, lambda x: x > 1, r))
+    # Only 2 and 3 pass pred, 1 gets rank+5, then normalize
+    # After penalty: (1,5), (2,1), (3,2) -> normalize: (2,0), (3,1), (1,4)
+    assert set(result) == set([(2,0), (3,1), (1,4)])
+    # observe_e_x: penalize values not >2 by 3
+    result2 = list(observe_e_x(3, lambda x: x > 2, r))
+    # After penalty: (1,3), (2,4), (3,2) -> normalize: (3,0), (1,1), (2,2)
+    assert set(result2) == set([(3,0), (1,1), (2,2)])
+    # All fail pred
+    result3 = list(observe_r(2, lambda x: x > 10, r))
+    # All get +2, then normalize: (1,2), (2,3), (3,4) -> (1,0), (2,1), (3,2)
+    assert set(result3) == set([(1,0), (2,1), (3,2)])
+    # All pass pred
+    result4 = list(observe_e_x(2, lambda x: x < 10, r))
+    # No penalty, normalize: (1,0), (2,1), (3,2)
+    assert set(result4) == set([(1,0), (2,1), (3,2)])
