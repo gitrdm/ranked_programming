@@ -64,3 +64,49 @@ def observe_all(
     """
     for v, r in _normalize_ranking(ranking, predicates=predicates):
         yield (v, r)
+
+def observe_r(
+    result_strength: int,
+    pred: Callable[[Any], bool],
+    ranking: Iterable[Tuple[Any, int]]
+) -> Generator[Tuple[Any, int], None, None]:
+    """
+    Result-oriented conditionalization.
+
+    Like :func:`observe`, but increases the rank of values failing ``pred`` by ``result_strength``, then normalizes.
+
+    :param result_strength: Extra posterior belief strength (rank penalty) for values failing ``pred``.
+    :type result_strength: int
+    :param pred: Predicate to filter values.
+    :type pred: Callable[[Any], bool]
+    :param ranking: Input ranking (Ranking or iterable of (value, rank) pairs).
+    :type ranking: Iterable[Tuple[Any, int]]
+    :yields: (value, rank) pairs, normalized.
+    :rtype: Generator[Tuple[Any, int], None, None]
+    """
+    for v, r in _normalize_ranking(
+        ((v, r + result_strength) if not pred(v) else (v, r) for v, r in ranking)
+    ):
+        yield (v, r)
+
+def observe_e_x(
+    evidence_strength: int,
+    pred: Callable[[Any], bool],
+    ranking: Iterable[Tuple[Any, int]]
+) -> Generator[Tuple[Any, int], None, None]:
+    """
+    Evidence-oriented conditionalization.
+
+    Like :func:`observe_e`, but increases the rank of values failing ``pred`` by ``evidence_strength``, then normalizes.
+
+    :param evidence_strength: Extra evidence strength (rank penalty) for values failing ``pred``.
+    :type evidence_strength: int
+    :param pred: Predicate to filter values.
+    :type pred: Callable[[Any], bool]
+    :param ranking: Input ranking (Ranking or iterable of (value, rank) pairs).
+    :type ranking: Iterable[Tuple[Any, int]]
+    :yields: (value, rank) pairs, normalized.
+    :rtype: Generator[Tuple[Any, int], None, None]
+    """
+    for v, r in _normalize_ranking(ranking, pred=pred, evidence=evidence_strength):
+        yield (v, r)
