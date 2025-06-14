@@ -93,6 +93,11 @@ def rlet_star(
         >>> list(rlet_star([('x', [1, 2]), ('y', lambda x: [x, x+1])], f))
         [(2, 0), (3, 0), (3, 0), (4, 0)]
     """
+    if not isinstance(bindings, list):
+        raise TypeError("bindings must be a list of (name, value/function) pairs")
+    for b in bindings:
+        if not (isinstance(b, tuple) and len(b) == 2 and isinstance(b[0], str)):
+            raise TypeError("Each binding must be a (str, value/function) tuple")
     logger.info(f"rlet_star called with bindings={bindings}")
     def helper(idx: int, env: tuple, acc_rank: int):
         if idx == len(bindings):
@@ -130,6 +135,11 @@ def rlet(
         >>> list(rlet([('x', [1, 2]), ('y', [10, 20])], f))
         [(10, 0), (20, 0), (20, 0), (40, 0)]
     """
+    if not isinstance(bindings, list):
+        raise TypeError("bindings must be a list of (name, value/function) pairs")
+    for b in bindings:
+        if not (isinstance(b, tuple) and len(b) == 2 and isinstance(b[0], str)):
+            raise TypeError("Each binding must be a (str, value/function) tuple")
     logger.info(f"rlet called with bindings={bindings}")
     rankings = [as_ranking(val) for _, val in bindings]
     from itertools import product
@@ -298,6 +308,10 @@ def construct_ranking(*pairs: Tuple[Any, int]) -> Generator[Tuple[Any, int], Non
         >>> list(construct_ranking(("x", 0), ("y", 1), ("z", 5)))
         [("x", 0), ("y", 1), ("z", 5)]
     """
+    if not all(isinstance(p, tuple) and len(p) == 2 for p in pairs):
+        raise TypeError("All arguments must be (value, rank) pairs")
+    if not all(isinstance(r, int) and r >= 0 for _, r in pairs):
+        raise ValueError("All ranks must be non-negative integers")
     if not pairs:
         return
     prev_rank = None
@@ -352,6 +366,13 @@ def rf_equal(k1: Iterable[Tuple[Any, int]], k2: Iterable[Tuple[Any, int]], max_i
     """
     Returns True if k1 and k2 are equivalent rankings (same values at same ranks, order irrelevant).
     Only compares up to max_items items for each ranking to avoid non-termination on infinite rankings.
+
+    Example::
+
+        >>> rf_equal([('a', 0), ('b', 1)], [('b', 1), ('a', 0)])
+        True
+        >>> rf_equal([('a', 0)], [('a', 1)])
+        False
     """
     # Convert to (value, rank) pairs, up to max_items
     def to_set(ranking):
@@ -369,6 +390,11 @@ def rf_to_hash(k: Iterable[Tuple[Any, int]], max_items: int = 1000) -> Dict[Any,
     """
     Converts a ranking k to a dict mapping each finitely ranked value to its rank.
     Only collects up to max_items items to avoid non-termination on infinite rankings.
+
+    Example::
+
+        >>> rf_to_hash([('a', 0), ('b', 1)])
+        {'a': 0, 'b': 1}
     """
     result = {}
     for i, (v, r) in enumerate(k):
@@ -381,6 +407,11 @@ def rf_to_assoc(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -
     """
     Converts the ranking k to an association list (list of (value, rank) pairs),
     sorted in non-decreasing order of rank. If max_items is set, only collects up to that many items.
+
+    Example::
+
+        >>> rf_to_assoc([('b', 1), ('a', 0)])
+        [('a', 0), ('b', 1)]
     """
     if max_items is None:
         items = list(k)
@@ -396,6 +427,11 @@ def rf_to_stream(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) 
     """
     Converts the ranking k to a generator (stream) of (value, rank) pairs in non-decreasing order of rank.
     If max_items is set, only yields up to that many items.
+
+    Example::
+
+        >>> list(rf_to_stream([('b', 1), ('a', 0)]))
+        [('a', 0), ('b', 1)]
     """
     if max_items is None:
         items = list(k)
