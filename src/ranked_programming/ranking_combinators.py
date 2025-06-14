@@ -21,7 +21,7 @@ Note: Use double backticks (``) for any asterisk or special character in docstri
 """
 from typing import Any, Callable, Iterable, Tuple, Generator
 import heapq
-from .ranking_class import Ranking, _flatten_ranking_like
+from .ranking_class import Ranking, _flatten_ranking_like, as_ranking
 import logging
 
 # Set up a module-level logger
@@ -33,7 +33,6 @@ def nrm_exc(
     v2: object,
     rank2: int = 1
 ) -> Generator[Tuple[Any, int], None, None]:
-    # Logging removed to avoid RecursionError in deep recursion
     """
     Normal/exceptional choice combinator (lazy version).
 
@@ -41,43 +40,46 @@ def nrm_exc(
     Supports lazy recursion and infinite structures.
     """
     if not isinstance(rank2, int):
-        logger.error(f"rank2 must be int, got {type(rank2).__name__}")
         raise TypeError(f"rank2 must be int, got {type(rank2).__name__}")
+    # Special case: if v1 is v2 and both are atomic, yield both (v1, 0) and (v1, rank2)
     import types
     atomic_types = (int, float, str, bool, type(None))
     if v1 is v2 and not isinstance(v1, (Ranking, types.GeneratorType, list, set, tuple)):
-        logger.debug(f"Special case: v1 is v2 and atomic: {repr(v1)}")
         yield (v1, 0)
         yield (v1, rank2)
         return
     yielded_hashable = set()
     # First yield from v1 at rank 0
     for v, r in _flatten_ranking_like(v1, 0):
-        # Do NOT call v if it's callable; let _flatten_ranking_like handle laziness
-        if hasattr(v, '__hash__') and v not in yielded_hashable:
-            logger.debug(f"Yield hashable from v1: {v} at rank={r}")
+        try:
+            hash(v)
+        except TypeError:
+            logger.debug(f"Yield unhashable from v1: {v!r} at rank={r}")
             yield (v, r)
-            yielded_hashable.add(v)
-        elif not hasattr(v, '__hash__'):
-            logger.debug(f"Yield unhashable from v1: {v} at rank={r}")
-            yield (v, r)
+        else:
+            if v not in yielded_hashable:
+                logger.debug(f"Yield hashable from v1: {v!r} at rank={r}")
+                yield (v, r)
+                yielded_hashable.add(v)
     # Then yield from v2 at rank2, skipping values already yielded
     for v, r in _flatten_ranking_like(v2, rank2):
-        # Do NOT call v if it's callable; let _flatten_ranking_like handle laziness
-        if hasattr(v, '__hash__') and v not in yielded_hashable:
-            logger.debug(f"Yield hashable from v2: {v} at rank={r}")
+        try:
+            hash(v)
+        except TypeError:
+            logger.debug(f"Yield unhashable from v2: {v!r} at rank={r}")
             yield (v, r)
-            yielded_hashable.add(v)
-        elif not hasattr(v, '__hash__'):
-            logger.debug(f"Yield unhashable from v2: {v} at rank={r}")
-            yield (v, r)
+        else:
+            if v not in yielded_hashable:
+                logger.debug(f"Yield hashable from v2: {v!r} at rank={r}")
+                yield (v, r)
+                yielded_hashable.add(v)
 
 def rlet_star(
     bindings: list[Tuple[str, object]],
     body: Callable[..., object]
 ) -> Generator[Tuple[Any, int], None, None]:
     """
-    Sequential dependent bindings (lazy, like Scheme's ``let``).
+    Sequential dependent bindings (lazy, like Scheme's ``let*``).
 
     Each binding can be a value, a Ranking, or a function of previous variables returning a generator or Ranking.
     The body can return a value, a Ranking, or a generator; all are automatically flattened.
@@ -90,17 +92,6 @@ def rlet_star(
         Tuple[Any, int]: (value, rank) pairs.
     """
     logger.info(f"rlet_star called with bindings={bindings}")
-    import inspect
-    def to_ranking(val: object, env: tuple) -> Ranking:
-        if isinstance(val, Ranking):
-            return val
-        elif callable(val):
-            sig = inspect.signature(val)
-            n_args = len(sig.parameters)
-            result = val(*env[:n_args])
-            return Ranking(lambda: _flatten_ranking_like(result, 0))
-        else:
-            return Ranking(lambda: _flatten_ranking_like(val, 0))
     def helper(idx: int, env: tuple, acc_rank: int):
         if idx == len(bindings):
             result = body(*env)
@@ -108,7 +99,7 @@ def rlet_star(
                 yield (v, r)
             return
         name, val = bindings[idx]
-        ranking = to_ranking(val, env)
+        ranking = as_ranking(val, env)
         for v, r in ranking:
             yield from helper(idx + 1, env + (v,), acc_rank + r)
     return helper(0, tuple(), 0)
@@ -131,15 +122,7 @@ def rlet(
         Tuple[Any, int]: (value, rank) pairs.
     """
     logger.info(f"rlet called with bindings={bindings}")
-    def to_ranking(val: object) -> Ranking:
-        if isinstance(val, Ranking):
-            return val
-        elif callable(val):
-            result = val()
-            return Ranking(lambda: _flatten_ranking_like(result, 0))
-        else:
-            return Ranking(lambda: _flatten_ranking_like(val, 0))
-    rankings = [to_ranking(val) for _, val in bindings]
+    rankings = [as_ranking(val) for _, val in bindings]
     from itertools import product
     for combo in product(*rankings):
         values = [v for v, _ in combo]
@@ -251,12 +234,7 @@ def ranked_apply(
     """
     logger.info(f"ranked_apply called with {len(args)} args")
     from itertools import product
-    def to_ranking(x: object) -> Ranking:
-        if isinstance(x, Ranking):
-            return x
-        else:
-            return Ranking(lambda: _flatten_ranking_like(x, 0))
-    rankings = [to_ranking(arg) for arg in args]
+    rankings = [as_ranking(arg) for arg in args]
     for combo in product(*rankings):
         values = [v for v, _ in combo]
         total_rank = sum(r for _, r in combo)
