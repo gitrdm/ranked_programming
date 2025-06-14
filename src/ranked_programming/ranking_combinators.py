@@ -258,3 +258,20 @@ def ranked_apply(
         result = f(*values)
         for v, r in _flatten_ranking_like(result, total_rank):
             yield (v, r)
+
+def bang(v):
+    """
+    Truth function: Returns a ranking where v is ranked 0 and anything else is ranked infinity.
+
+    Args:
+        v: The value to be ranked 0.
+
+    Yields:
+        (value, rank): (v, 0)
+
+    Example::
+
+        >>> list(bang(5))
+        [(5, 0)]
+    """
+    yield (v, 0)
