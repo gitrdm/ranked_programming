@@ -121,6 +121,47 @@ def test_pr_all_and_pr_first(capsys):
     out = capsys.readouterr().out
     assert "Failure" in out
 
+def test_pr_utilities(capsys):
+    from ranked_programming.rp_core import Ranking, nrm_exc, pr_all, pr_first, pr_first_n, pr_until, pr
+    r = Ranking(lambda: [(1, 0), (2, 1), (3, 2), (4, 3), (5, 4)])
+    # pr_all
+    pr_all(r)
+    out = capsys.readouterr().out
+    assert "Rank  Value" in out and "1" in out and "5" in out
+    # pr_first
+    pr_first(r)
+    out = capsys.readouterr().out
+    assert "0 1" in out
+    # pr_first_n
+    pr_first_n(3, r)
+    out = capsys.readouterr().out
+    assert "3" in out and "Done" in out
+    # pr_until
+    pr_until(2, r)
+    out = capsys.readouterr().out
+    assert "2 3" in out and "Done" in out
+    # pr (default 10)
+    pr(r)
+    out = capsys.readouterr().out
+    assert "Rank  Value" in out and "Done" in out
+    # Empty ranking
+    r_empty = Ranking(lambda: [])
+    pr_all(r_empty)
+    out = capsys.readouterr().out
+    assert "Failure" in out
+    pr_first(r_empty)
+    out = capsys.readouterr().out
+    assert "Failure" in out
+    pr_first_n(3, r_empty)
+    out = capsys.readouterr().out
+    assert "Failure" in out
+    pr_until(2, r_empty)
+    out = capsys.readouterr().out
+    assert "Failure" in out
+    pr(r_empty)
+    out = capsys.readouterr().out
+    assert "Failure" in out
+
 def test_invalid_input():
     from ranked_programming.rp_core import Ranking, nrm_exc
     # Invalid: passing a string as a generator should yield the string as a value

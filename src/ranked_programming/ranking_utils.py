@@ -76,3 +76,48 @@ def pr_first(ranking: Iterable[Tuple[Any, int]]) -> None:
         return
     v, rank = items[0]
     print(f"{rank} {v}")
+
+def pr_first_n(n: int, ranking: Iterable[Tuple[Any, int]]) -> None:
+    """
+    Pretty-print the n lowest-ranked (value, rank) pairs, or print a failure message if empty.
+
+    Args:
+        n: Number of values to print.
+        ranking: Input ranking (Ranking or iterable of (value, rank) pairs).
+    """
+    items = list(ranking)[:n]
+    if not items:
+        print("Failure (empty ranking)")
+        return
+    print("Rank  Value")
+    print("------------")
+    for v, rank in items:
+        print(f"{rank:>5} {v}")
+    print("Done")
+
+def pr_until(rank: int, ranking: Iterable[Tuple[Any, int]]) -> None:
+    """
+    Pretty-print all (value, rank) pairs with rank <= given rank, or print a failure message if empty.
+
+    Args:
+        rank: Maximum rank to print.
+        ranking: Input ranking (Ranking or iterable of (value, rank) pairs).
+    """
+    items = [(v, r) for v, r in ranking if r <= rank]
+    if not items:
+        print("Failure (empty ranking)")
+        return
+    print("Rank  Value")
+    print("------------")
+    for v, r in items:
+        print(f"{r:>5} {v}")
+    print("Done")
+
+def pr(ranking: Iterable[Tuple[Any, int]]) -> None:
+    """
+    Pretty-print the 10 lowest-ranked values of the ranking (short for pr_first_n(10, ranking)).
+
+    Args:
+        ranking: Input ranking (Ranking or iterable of (value, rank) pairs).
+    """
+    pr_first_n(10, ranking)
