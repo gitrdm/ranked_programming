@@ -121,6 +121,23 @@ For more details, see the `deduplicate_hashable` utility in the code and the com
 
 ---
 
+### Logging and Debugging
+
+All core combinators in this library include debug-level logging for tracing execution, recursion, and yielded values. By default, logging is disabled. To enable detailed tracing for debugging or development, configure the Python logging system in your application:
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+# To see only ranked_programming logs:
+logging.getLogger("ranked_programming").setLevel(logging.DEBUG)
+```
+
+You will then see debug messages for key events in combinators such as `nrm_exc`, `rlet`, `rlet_star`, `either_of`, and `ranked_apply`. Debug logging is guarded for performance and will not impact normal usage.
+
+For more details, see the module docstrings and code comments.
+
+---
+
 ## Reference
 
 See the Python docstrings and Sphinx documentation for detailed reference on each combinator and utility function.

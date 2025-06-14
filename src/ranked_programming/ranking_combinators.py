@@ -14,6 +14,9 @@ All combinators operate lazily and are compatible with the `Ranking` abstraction
 
 .. note::
 
+   **Logging and Debugging:**
+   All core combinators emit debug-level log messages for tracing recursion, yielded values, and edge cases. To enable detailed tracing, configure the Python logging system (see the Python reference documentation for details). Debug logging is performance-guarded and off by default.
+
    **Deduplication policy:**
    All combinators in this module always deduplicate values by their hashable identity, keeping only the first occurrence (with the minimal rank) for each hashable value. Unhashable values (such as lists or dicts) are always yielded, even if repeated. This deduplication is always enabled and is not user-configurable. Deduplication is performed lazily as values are generated, so infinite/lazy structures are supported. See the Python reference and `deduplicate_hashable` utility for details.
 
