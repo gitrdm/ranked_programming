@@ -341,3 +341,20 @@ def failure():
     """
     return
     yield  # This is never reached, but makes this a generator
+
+def rf_equal(k1, k2, max_items=1000):
+    """
+    Returns True if k1 and k2 are equivalent rankings (same values at same ranks, order irrelevant).
+    Only compares up to max_items items for each ranking to avoid non-termination on infinite rankings.
+    """
+    # Convert to (value, rank) pairs, up to max_items
+    def to_set(ranking):
+        items = set()
+        for i, (v, r) in enumerate(ranking):
+            if i >= max_items:
+                break
+            items.add((v, r))
+        return items
+    s1 = to_set(k1)
+    s2 = to_set(k2)
+    return s1 == s2

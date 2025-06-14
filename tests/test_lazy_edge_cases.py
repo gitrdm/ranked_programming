@@ -182,3 +182,34 @@ def test_rlet_star_racket_example():
         ("beer and no peanuts", 2)
     ])
     assert result == expected
+
+def test_rf_equal_example():
+    from ranked_programming.rp_core import Ranking, nrm_exc, rf_equal
+    # Two rankings with same values/ranks, different order
+    r1 = Ranking(lambda: [(1, 0), (2, 1)])
+    r2 = Ranking(lambda: [(2, 1), (1, 0)])
+    assert rf_equal(r1, r2)
+    # Different values
+    r3 = Ranking(lambda: [(1, 0), (3, 1)])
+    assert not rf_equal(r1, r3)
+    # Same values, different ranks
+    r4 = Ranking(lambda: [(1, 1), (2, 0)])
+    assert not rf_equal(r1, r4)
+    # Infinite ranking: should not terminate if not for max_items
+    def inf():
+        n = 0
+        while True:
+            yield (n, n)
+            n += 1
+    r_inf1 = Ranking(inf)
+    r_inf2 = Ranking(inf)
+    # Should be equal for first 1000 items
+    assert rf_equal(r_inf1, r_inf2, max_items=1000)
+    # Different infinite rankings
+    def inf2():
+        n = 0
+        while True:
+            yield (n+1, n)
+            n += 1
+    r_inf3 = Ranking(inf2)
+    assert not rf_equal(r_inf1, r_inf3, max_items=1000)
