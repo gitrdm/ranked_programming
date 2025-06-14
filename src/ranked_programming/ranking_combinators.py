@@ -177,6 +177,55 @@ def either_of(*rankings: Iterable[Tuple[Any, int]]) -> Generator[Tuple[Any, int]
         except StopIteration:
             continue
 
+def either_or(*ks, base_rank=1):
+    """
+    Returns a ranking where all arguments are equally surprising (same rank), or, if arguments are rankings, the rank of a value is the minimum among the ranks from the arguments.
+
+    Args:
+        *ks: Values or rankings.
+        base_rank: The rank to assign to atomic values (default 1).
+
+    Yields:
+        (value, rank): Each value with its minimal rank among the arguments, or base_rank if atomic.
+
+    Example::
+
+        >>> list(either_or("ann", "bob", "charlie"))
+        [("ann", 1), ("bob", 1), ("charlie", 1)]
+        >>> from ranked_programming.rp_core import nrm_exc, Ranking
+        >>> list(Ranking(lambda: nrm_exc("peter", either_or("ann", "bob", "charlie", base_rank=0))))
+        [("peter", 0), ("ann", 1), ("bob", 1), ("charlie", 1)]
+
+    If arguments are rankings, the rank of a value is the minimum among the ranks from the arguments::
+
+        >>> r1 = Ranking(lambda: nrm_exc("peter", "ann"))
+        >>> r2 = Ranking(lambda: nrm_exc("bob", "charly"))
+        >>> list(either_or(r1, r2))
+        [("peter", 0), ("bob", 0), ("ann", 1), ("charly", 1)]
+    """
+    from .ranking_class import Ranking, _flatten_ranking_like
+    import types
+    # If all arguments are atomic (not Ranking, not generator, not callable), treat as equally surprising at base_rank
+    atomic_types = (int, float, str, bool, type(None))
+    if all(
+        not isinstance(k, (Ranking, types.GeneratorType, list, set, tuple)) and not callable(k)
+        for k in ks
+    ):
+        seen = set()
+        for k in ks:
+            if k not in seen:
+                yield (k, base_rank)
+                seen.add(k)
+        return
+    # Otherwise, treat as rankings and yield values with minimal rank
+    from collections import defaultdict
+    value_to_rank = defaultdict(list)
+    for k in ks:
+        for v, r in _flatten_ranking_like(k, 0):
+            value_to_rank[v].append(r)
+    for v, ranks in value_to_rank.items():
+        yield (v, min(ranks))
+
 def ranked_apply(
     f: Callable[..., object],
     *args: object
