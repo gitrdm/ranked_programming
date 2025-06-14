@@ -371,15 +371,33 @@ def rf_to_hash(k, max_items=1000):
         result[v] = r
     return result
 
-def rf_to_assoc(k, max_items=1000):
+def rf_to_assoc(k, max_items=None):
     """
-    Converts a ranking k to a list of (value, rank) pairs, sorted by non-decreasing rank.
-    Only collects up to max_items items to avoid non-termination on infinite rankings.
+    Converts the ranking k to an association list (list of (value, rank) pairs),
+    sorted in non-decreasing order of rank. If max_items is set, only collects up to that many items.
     """
-    items = []
-    for i, (v, r) in enumerate(k):
-        if i >= max_items:
-            break
-        items.append((v, r))
-    items.sort(key=lambda x: x[1])
-    return items
+    if max_items is None:
+        items = list(k)
+    else:
+        items = []
+        for i, x in enumerate(k):
+            if i >= max_items:
+                break
+            items.append(x)
+    return sorted(items, key=lambda vr: vr[1])
+
+def rf_to_stream(k, max_items=None):
+    """
+    Converts the ranking k to a generator (stream) of (value, rank) pairs in non-decreasing order of rank.
+    If max_items is set, only yields up to that many items.
+    """
+    if max_items is None:
+        items = list(k)
+    else:
+        items = []
+        for i, x in enumerate(k):
+            if i >= max_items:
+                break
+            items.append(x)
+    for item in sorted(items, key=lambda vr: vr[1]):
+        yield item

@@ -258,3 +258,37 @@ def test_rf_to_assoc_example():
     assert len(assoc_inf) == 10
     assert assoc_inf == [(i, i) for i in range(10)]
     # Document limitation: if ranking is infinite, only a prefix is collected
+
+def test_rf_to_assoc_and_stream():
+    from ranked_programming.rp_core import Ranking, nrm_exc, rf_to_assoc, rf_to_stream
+    # Simple ranking
+    r = Ranking(lambda: [(2, 1), (1, 0), (3, 2)])
+    assoc = rf_to_assoc(r)
+    assert assoc == [(1, 0), (2, 1), (3, 2)]
+    # Duplicates: last wins in rf_to_hash, but all appear in assoc
+    r2 = Ranking(lambda: [(1, 0), (1, 1), (2, 2)])
+    assoc2 = rf_to_assoc(r2)
+    assert assoc2 == [(1, 0), (1, 1), (2, 2)]
+    # Infinite ranking: only test prefix using max_items
+    def inf():
+        n = 0
+        while True:
+            yield (n, n)
+            n += 1
+    r_inf = Ranking(inf)
+    assoc_inf = rf_to_assoc(r_inf, max_items=5)
+    assert assoc_inf == [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
+    # rf_to_stream: should yield in non-decreasing order
+    r3 = Ranking(lambda: [(2, 1), (1, 0), (3, 2)])
+    stream = rf_to_stream(r3)
+    assert list(stream) == [(1, 0), (2, 1), (3, 2)]
+    # Infinite stream: only test prefix using max_items
+    def inf2():
+        n = 0
+        while True:
+            yield (n, n)
+            n += 1
+    r_inf2 = Ranking(inf2)
+    stream2 = rf_to_stream(r_inf2, max_items=5)
+    prefix = list(stream2)
+    assert prefix == [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
