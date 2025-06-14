@@ -358,3 +358,15 @@ def rf_equal(k1, k2, max_items=1000):
     s1 = to_set(k1)
     s2 = to_set(k2)
     return s1 == s2
+
+def rf_to_hash(k, max_items=1000):
+    """
+    Converts a ranking k to a dict mapping each finitely ranked value to its rank.
+    Only collects up to max_items items to avoid non-termination on infinite rankings.
+    """
+    result = {}
+    for i, (v, r) in enumerate(k):
+        if i >= max_items:
+            break
+        result[v] = r
+    return result

@@ -213,3 +213,25 @@ def test_rf_equal_example():
             n += 1
     r_inf3 = Ranking(inf2)
     assert not rf_equal(r_inf1, r_inf3, max_items=1000)
+
+def test_rf_to_hash_example():
+    from ranked_programming.rp_core import Ranking, nrm_exc, rf_to_hash
+    # Simple ranking
+    r = Ranking(lambda: [(1, 0), (2, 1)])
+    h = rf_to_hash(r)
+    assert h == {1: 0, 2: 1} or h == {2: 1, 1: 0}  # order doesn't matter
+    # Ranking with duplicate values (last wins)
+    r2 = Ranking(lambda: [(1, 0), (1, 1), (2, 2)])
+    h2 = rf_to_hash(r2)
+    assert h2[1] in (0, 1) and h2[2] == 2
+    # Infinite ranking: should only collect up to max_items
+    def inf():
+        n = 0
+        while True:
+            yield (n, n)
+            n += 1
+    r_inf = Ranking(inf)
+    h_inf = rf_to_hash(r_inf, max_items=10)
+    assert len(h_inf) == 10
+    assert all(h_inf[v] == v for v in range(10))
+    # Document limitation: if ranking is infinite, only a prefix is collected
