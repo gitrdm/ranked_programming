@@ -10,6 +10,8 @@ dependencies:
   - black
   - isort
   - sphinx
+  - jupyter
+  - ipykernel
   - pip:
       - .
       - sphinx-autodoc-typehints
