@@ -8,8 +8,11 @@ utilities in the library are built on this class.
 - `Ranking`: A lazy, generator-based abstraction for ranked search spaces.
 - `_flatten_ranking_like`: Internal utility to flatten nested rankings, generators, or atomic values.
 - `_normalize_ranking`: Internal utility to filter and normalize rankings by predicates and evidence.
+- `deduplicate_hashable`: Lazily deduplicate (value, rank) pairs by value, always enabled for all combinators. Hashable values are yielded only once (with minimal rank); unhashable values are always yielded, even if repeated. See the docstring for details.
 
-See the main API in `rp_api.py` for user-facing usage.
+**Deduplication is always enabled and not user-configurable in this implementation.**
+
+See the main API in `rp_api.py` for user-facing usage. See the Python reference and Sphinx docs for more on deduplication and ranking semantics.
 """
 from typing import Any, Callable, Iterable, Tuple, Generator, Optional
 from collections.abc import Iterable as ABCIterable, Iterator
