@@ -182,7 +182,7 @@ def either_or(*ks, base_rank=1):
     Returns a ranking where all arguments are equally surprising (same rank), or, if arguments are rankings, the rank of a value is the minimum among the ranks from the arguments.
 
     Args:
-        *ks: Values or rankings.
+        ks: Values or rankings.
         base_rank: The rank to assign to atomic values (default 1).
 
     Yields:
@@ -275,3 +275,30 @@ def bang(v):
         [(5, 0)]
     """
     yield (v, 0)
+
+def construct_ranking(*pairs):
+    """
+    Constructs a ranking from an association list of (value, rank) pairs.
+    The first rank must be 0, and ranks must be sorted in non-decreasing order.
+
+    Args:
+        pairs: Tuples of (value, rank).
+
+    Yields:
+        (value, rank): Each value with its specified rank.
+
+    Example::
+
+        >>> list(construct_ranking(("x", 0), ("y", 1), ("z", 5)))
+        [("x", 0), ("y", 1), ("z", 5)]
+    """
+    if not pairs:
+        return
+    prev_rank = None
+    for i, (v, r) in enumerate(pairs):
+        if i == 0 and r != 0:
+            raise ValueError("First rank must be 0")
+        if prev_rank is not None and r < prev_rank:
+            raise ValueError("Ranks must be sorted in non-decreasing order")
+        yield (v, r)
+        prev_rank = r
