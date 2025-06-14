@@ -121,3 +121,33 @@ def pr(ranking: Iterable[Tuple[Any, int]]) -> None:
         ranking: Input ranking (Ranking or iterable of (value, rank) pairs).
     """
     pr_first_n(10, ranking)
+
+def is_rank(x: Any) -> bool:
+    """
+    Return True if x is a valid rank (non-negative integer or float('inf')).
+
+    :param x: Value to check.
+    :type x: Any
+    :return: True if x is a non-negative integer or infinity, False otherwise.
+    :rtype: bool
+    """
+    return (isinstance(x, int) and x >= 0) or (isinstance(x, float) and x == float('inf'))
+
+
+def is_ranking(x: Any) -> bool:
+    """
+    Return True if x is a valid ranking (iterable of (value, rank) pairs with valid ranks).
+
+    :param x: Value to check.
+    :type x: Any
+    :return: True if x is an iterable of (value, rank) pairs with valid ranks, False otherwise.
+    :rtype: bool
+    """
+    try:
+        iterator = iter(x)
+        for item in iterator:
+            if not (isinstance(item, tuple) and len(item) == 2 and is_rank(item[1])):
+                return False
+        return True
+    except Exception:
+        return False
