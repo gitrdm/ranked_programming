@@ -194,6 +194,11 @@ def either_of(*rankings: object) -> Generator[Tuple[Any, int], None, None]:
     For duplicate values, keep the lowest rank (first occurrence wins).
     Always yields values in the order of minimal rank, deduplicating on the fly.
 
+    Edge cases:
+        - If no arguments are given, yields nothing (empty ranking).
+        - If any argument is empty, it is ignored.
+        - If all arguments are empty, yields nothing.
+
     Args:
         rankings: One or more Ranking objects or iterables of (value, rank) pairs. (Use ``*rankings`` in code.)
 
@@ -206,9 +211,12 @@ def either_of(*rankings: object) -> Generator[Tuple[Any, int], None, None]:
         >>> r2 = [("b", 0), ("c", 2)]
         >>> list(either_of(r1, r2))
         [("a", 0), ("b", 1), ("c", 2)]
+        >>> list(either_of())
+        []
     """
-    logger.info(f"either_of called with {len(rankings)} rankings")
-    # Normalize all arguments to rankings, treating lists/tuples/sets of (value, rank) pairs as rankings
+    if not rankings:
+        return
+        yield  # never reached
     normalized = [_as_ranking_or_pairs(r) for r in rankings]
     heap = []
     iterators = [iter(r) for r in normalized]
@@ -239,6 +247,11 @@ def either_or(*ks: object, base_rank: int = 1) -> Generator[Tuple[Any, int], Non
 
     Each argument can be a value, iterable of (value, rank) pairs, or Ranking. All inputs are normalized automatically. Lists/tuples/sets of (value, rank) pairs are treated as rankings, not atomic values.
 
+    Edge cases:
+        - If no arguments are given, yields nothing (empty ranking).
+        - If all arguments are atomic, yields each unique value at base_rank.
+        - If all arguments are empty, yields nothing.
+
     Args:
         ks: Values or rankings.
         base_rank: The rank to assign to atomic values (default 1).
@@ -250,6 +263,8 @@ def either_or(*ks: object, base_rank: int = 1) -> Generator[Tuple[Any, int], Non
 
         >>> list(either_or("ann", "bob", "charlie"))
         [("ann", 1), ("bob", 1), ("charlie", 1)]
+        >>> list(either_or())
+        []
         >>> from ranked_programming.rp_core import nrm_exc, Ranking
         >>> list(Ranking(lambda: nrm_exc("peter", either_or("ann", "bob", "charlie", base_rank=0))))
         [("peter", 0), ("ann", 1), ("bob", 1), ("charlie", 1)]
@@ -261,9 +276,11 @@ def either_or(*ks: object, base_rank: int = 1) -> Generator[Tuple[Any, int], Non
         >>> list(either_or(r1, r2))
         [("peter", 0), ("bob", 0), ("ann", 1), ("charly", 1)]
     """
+    if not ks:
+        return
+        yield  # never reached
     import types
     atomic_types = (int, float, str, bool, type(None))
-    # If all arguments are atomic (not Ranking, not generator, not callable), treat as equally surprising at base_rank
     if all(
         not isinstance(k, (Ranking, types.GeneratorType, list, set, tuple)) and not callable(k)
         for k in ks
@@ -274,7 +291,6 @@ def either_or(*ks: object, base_rank: int = 1) -> Generator[Tuple[Any, int], Non
                 yield (k, base_rank)
                 seen.add(k)
         return
-    # Otherwise, treat as rankings and yield values with minimal rank
     from collections import defaultdict
     value_to_rank = defaultdict(list)
     for k in ks:
@@ -282,62 +298,6 @@ def either_or(*ks: object, base_rank: int = 1) -> Generator[Tuple[Any, int], Non
             value_to_rank[v].append(r)
     for v, ranks in value_to_rank.items():
         yield (v, min(ranks))
-
-
-def ranked_apply(
-    f: Callable[..., object],
-    *args: object
-) -> Generator[Tuple[Any, int], None, None]:
-    """
-    Apply function f to all combinations of lazy ranked arguments.
-
-    Each argument can be a Ranking or a value (treated as rank 0).
-    Yields (f(values), total_rank) lazily for each combination.
-    If f(values) returns a Ranking or generator, it is automatically flattened.
-
-    Args:
-        f: Function to apply.
-        args: Ranking or value arguments. (Use ``*args`` in code.)
-
-    Yields:
-        Tuple[Any, int]: (value, rank) pairs.
-
-    Example::
-
-        >>> def add(x, y):
-        ...     return x + y
-        >>> list(ranked_apply(add, [1, 2], [10, 20]))
-        [(11, 0), (21, 0), (12, 0), (22, 0)]
-    """
-    logger.info(f"ranked_apply called with {len(args)} args")
-    from itertools import product
-    rankings = [as_ranking(arg) for arg in args]
-    for combo in product(*rankings):
-        values = [v for v, _ in combo]
-        total_rank = sum(r for _, r in combo)
-        result = f(*values)
-        for v, r in _flatten_ranking_like(result, total_rank):
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(f"ranked_apply: yielding {v!r} at rank {r}")
-            yield (v, r)
-
-
-def bang(v: Any) -> Generator[Tuple[Any, int], None, None]:
-    """
-    Truth function: Returns a ranking where v is ranked 0 and anything else is ranked infinity.
-
-    Args:
-        v: The value to be ranked 0.
-
-    Yields:
-        (value, rank): (v, 0)
-
-    Example::
-
-        >>> list(bang(5))
-        [(5, 0)]
-    """
-    yield (v, 0)
 
 
 def construct_ranking(*pairs: Tuple[Any, int]) -> Generator[Tuple[Any, int], None, None]:
@@ -351,10 +311,17 @@ def construct_ranking(*pairs: Tuple[Any, int]) -> Generator[Tuple[Any, int], Non
     Yields:
         (value, rank): Each value with its specified rank.
 
+    Edge cases:
+        - If no pairs are given, yields nothing (empty ranking).
+        - Raises TypeError if any argument is not a (value, rank) tuple.
+        - Raises ValueError if any rank is negative, not an int, or if ranks are not sorted.
+
     Example::
 
         >>> list(construct_ranking(("x", 0), ("y", 1), ("z", 5)))
         [("x", 0), ("y", 1), ("z", 5)]
+        >>> list(construct_ranking())
+        []
     """
     if not all(isinstance(p, tuple) and len(p) == 2 for p in pairs):
         raise TypeError("All arguments must be (value, rank) pairs")
@@ -362,6 +329,7 @@ def construct_ranking(*pairs: Tuple[Any, int]) -> Generator[Tuple[Any, int], Non
         raise ValueError("All ranks must be non-negative integers")
     if not pairs:
         return
+        yield  # never reached
     prev_rank = None
     for i, (v, r) in enumerate(pairs):
         if i == 0 and r != 0:
@@ -418,14 +386,21 @@ def rf_equal(k1: Iterable[Tuple[Any, int]], k2: Iterable[Tuple[Any, int]], max_i
     Returns True if k1 and k2 are equivalent rankings (same values at same ranks, order irrelevant).
     Only compares up to max_items items for each ranking to avoid non-termination on infinite rankings.
 
+    Edge cases:
+        - If either ranking is empty, returns True if both are empty, False otherwise.
+        - If max_items is 0, always returns True.
+
     Example::
 
         >>> rf_equal([('a', 0), ('b', 1)], [('b', 1), ('a', 0)])
         True
         >>> rf_equal([('a', 0)], [('a', 1)])
         False
+        >>> rf_equal([], [])
+        True
+        >>> rf_equal([('a', 0)], [])
+        False
     """
-    # Convert to (value, rank) pairs, up to max_items
     def to_set(ranking):
         items = set()
         for i, (v, r) in enumerate(ranking):
@@ -443,10 +418,17 @@ def rf_to_hash(k: Iterable[Tuple[Any, int]], max_items: int = 1000) -> Dict[Any,
     Converts a ranking k to a dict mapping each finitely ranked value to its rank.
     Only collects up to max_items items to avoid non-termination on infinite rankings.
 
+    Edge cases:
+        - If k is empty, returns an empty dict.
+        - If max_items is 0, returns an empty dict.
+        - If duplicate values are present, the last one seen is used.
+
     Example::
 
         >>> rf_to_hash([('a', 0), ('b', 1)])
         {'a': 0, 'b': 1}
+        >>> rf_to_hash([])
+        {}
     """
     result = {}
     for i, (v, r) in enumerate(k):
@@ -461,10 +443,16 @@ def rf_to_assoc(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -
     Converts the ranking k to an association list (list of (value, rank) pairs),
     sorted in non-decreasing order of rank. If max_items is set, only collects up to that many items.
 
+    Edge cases:
+        - If k is empty, returns an empty list.
+        - If max_items is 0, returns an empty list.
+
     Example::
 
         >>> rf_to_assoc([('b', 1), ('a', 0)])
         [('a', 0), ('b', 1)]
+        >>> rf_to_assoc([])
+        []
     """
     if max_items is None:
         items = list(k)
@@ -482,10 +470,16 @@ def rf_to_stream(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) 
     Converts the ranking k to a generator (stream) of (value, rank) pairs in non-decreasing order of rank.
     If max_items is set, only yields up to that many items.
 
+    Edge cases:
+        - If k is empty, yields nothing.
+        - If max_items is 0, yields nothing.
+
     Example::
 
-        >>> list(rf_to_stream([('b', 1), ('a', 0)]))
+        >>> list(rf_to_stream([('b', 1), ('a', 0]]))
         [('a', 0), ('b', 1)]
+        >>> list(rf_to_stream([]))
+        []
     """
     if max_items is None:
         items = list(k)
@@ -497,3 +491,68 @@ def rf_to_stream(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) 
             items.append(x)
     for item in sorted(items, key=lambda vr: vr[1]):
         yield item
+
+
+def ranked_apply(
+    f: Callable[..., object],
+    *args: object
+) -> Generator[Tuple[Any, int], None, None]:
+    """
+    Apply function f to all combinations of lazy ranked arguments.
+
+    Each argument can be a Ranking, iterable of (value, rank) pairs, or a value (treated as rank 0). All inputs are normalized automatically.
+    Yields (f(values), total_rank) lazily for each combination.
+    If f(values) returns a Ranking or generator, it is automatically flattened.
+
+    Edge cases:
+        - If no arguments are given, yields f() at rank 0.
+        - If any argument is empty, yields nothing.
+
+    Example::
+
+        >>> def add(x, y):
+        ...     return x + y
+        >>> list(ranked_apply(add, [1, 2], [10, 20]))
+        [(11, 0), (21, 0), (12, 0), (22, 0)]
+        >>> list(ranked_apply(lambda: 42))
+        [(42, 0)]
+    """
+    logger.info(f"ranked_apply called with {len(args)} args")
+    from itertools import product
+    rankings = [_as_ranking_or_pairs(arg) for arg in args]
+    if not rankings:
+        # No arguments: just call f() at rank 0
+        result = f()
+        for v, r in _flatten_ranking_like(result, 0):
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"ranked_apply: yielding {v!r} at rank {r}")
+            yield (v, r)
+        return
+    for combo in product(*rankings):
+        values = [v for v, _ in combo]
+        total_rank = sum(r for _, r in combo)
+        result = f(*values)
+        for v, r in _flatten_ranking_like(result, total_rank):
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"ranked_apply: yielding {v!r} at rank {r}")
+            yield (v, r)
+
+def bang(v: Any) -> Generator[Tuple[Any, int], None, None]:
+    """
+    Truth function: Returns a ranking where v is ranked 0 and anything else is ranked infinity.
+
+    Args:
+        v: The value to be ranked 0.
+
+    Yields:
+        (value, rank): (v, 0)
+
+    Edge cases:
+        - Always yields exactly one (v, 0) pair.
+
+    Example::
+
+        >>> list(bang(5))
+        [(5, 0)]
+    """
+    yield (v, 0)
