@@ -302,3 +302,27 @@ def construct_ranking(*pairs):
             raise ValueError("Ranks must be sorted in non-decreasing order")
         yield (v, r)
         prev_rank = r
+
+def rank_of(pred, k):
+    """
+    Returns the minimal rank of a value in ranking k for which pred(value) is True.
+    If no such value exists, returns None.
+
+    Args:
+        pred: Predicate function (any -> bool).
+        k: Ranking (iterable of (value, rank)).
+
+    Returns:
+        int or None: The minimal rank for which pred(value) is True, or None if not found.
+
+    Example::
+
+        >>> def recur(x):
+        ...     return nrm_exc(x, lambda: recur(x * 2), 1)
+        >>> rank_of(lambda x: x > 500, recur(1))
+        9
+    """
+    for v, r in k:
+        if pred(v):
+            return r
+    return None

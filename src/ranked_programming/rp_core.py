@@ -19,7 +19,7 @@ Note: Use double backticks (``) for any asterisk or special character in docstri
 """
 
 from .ranking_class import Ranking, _flatten_ranking_like, _normalize_ranking
-from .ranking_combinators import nrm_exc, rlet, rlet_star, either_of, ranked_apply, either_or, bang, construct_ranking
+from .ranking_combinators import nrm_exc, rlet, rlet_star, either_of, ranked_apply, either_or, bang, construct_ranking, rank_of
 from .ranking_observe import observe, observe_e, observe_all
 from .ranking_utils import limit, cut, pr_all, pr_first
 
@@ -42,4 +42,5 @@ __all__ = [
     'either_or',
     'bang',
     'construct_ranking',
+    'rank_of',
 ]
