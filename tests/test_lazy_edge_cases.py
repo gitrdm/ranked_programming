@@ -234,4 +234,27 @@ def test_rf_to_hash_example():
     h_inf = rf_to_hash(r_inf, max_items=10)
     assert len(h_inf) == 10
     assert all(h_inf[v] == v for v in range(10))
+
+def test_rf_to_assoc_example():
+    from ranked_programming.rp_core import Ranking, nrm_exc, rf_to_assoc
+    # Simple ranking
+    r = Ranking(lambda: [(1, 0), (2, 1), (3, 1)])
+    assoc = rf_to_assoc(r)
+    # Should be sorted by rank: [(1,0), (2,1), (3,1)] or [(1,0), (3,1), (2,1)]
+    assert assoc[0][1] == 0
+    assert set(assoc[1:]) == {(2, 1), (3, 1)}
+    # Ranking with duplicate values (last wins, but all are included)
+    r2 = Ranking(lambda: [(1, 0), (1, 1), (2, 2)])
+    assoc2 = rf_to_assoc(r2)
+    assert (1, 0) in assoc2 and (1, 1) in assoc2 and (2, 2) in assoc2
+    # Infinite ranking: should only collect up to max_items
+    def inf():
+        n = 0
+        while True:
+            yield (n, n)
+            n += 1
+    r_inf = Ranking(inf)
+    assoc_inf = rf_to_assoc(r_inf, max_items=10)
+    assert len(assoc_inf) == 10
+    assert assoc_inf == [(i, i) for i in range(10)]
     # Document limitation: if ranking is infinite, only a prefix is collected

@@ -370,3 +370,16 @@ def rf_to_hash(k, max_items=1000):
             break
         result[v] = r
     return result
+
+def rf_to_assoc(k, max_items=1000):
+    """
+    Converts a ranking k to a list of (value, rank) pairs, sorted by non-decreasing rank.
+    Only collects up to max_items items to avoid non-termination on infinite rankings.
+    """
+    items = []
+    for i, (v, r) in enumerate(k):
+        if i >= max_items:
+            break
+        items.append((v, r))
+    items.sort(key=lambda x: x[1])
+    return items
