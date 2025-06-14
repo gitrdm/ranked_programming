@@ -21,7 +21,7 @@ All combinators operate lazily and are compatible with the `Ranking` abstraction
 
 Note: Use double backticks (``) for any asterisk or special character in docstrings to avoid Sphinx warnings.
 """
-from typing import Any, Callable, Iterable, Tuple, Generator
+from typing import Any, Callable, Iterable, Tuple, Generator, Optional, Dict, List, Union
 import heapq
 from .ranking_class import Ranking, _flatten_ranking_like, as_ranking, deduplicate_hashable
 import logging
@@ -153,7 +153,7 @@ def either_of(*rankings: Iterable[Tuple[Any, int]]) -> Generator[Tuple[Any, int]
         except StopIteration:
             continue
 
-def either_or(*ks, base_rank=1):
+def either_or(*ks: object, base_rank: int = 1) -> Generator[Tuple[Any, int], None, None]:
     """
     Returns a ranking where all arguments are equally surprising (same rank), or, if arguments are rankings, the rank of a value is the minimum among the ranks from the arguments.
 
@@ -230,7 +230,7 @@ def ranked_apply(
         for v, r in _flatten_ranking_like(result, total_rank):
             yield (v, r)
 
-def bang(v):
+def bang(v: Any) -> Generator[Tuple[Any, int], None, None]:
     """
     Truth function: Returns a ranking where v is ranked 0 and anything else is ranked infinity.
 
@@ -247,7 +247,7 @@ def bang(v):
     """
     yield (v, 0)
 
-def construct_ranking(*pairs):
+def construct_ranking(*pairs: Tuple[Any, int]) -> Generator[Tuple[Any, int], None, None]:
     """
     Constructs a ranking from an association list of (value, rank) pairs.
     The first rank must be 0, and ranks must be sorted in non-decreasing order.
@@ -274,7 +274,7 @@ def construct_ranking(*pairs):
         yield (v, r)
         prev_rank = r
 
-def rank_of(pred, k):
+def rank_of(pred: Callable[[Any], bool], k: Iterable[Tuple[Any, int]]) -> Optional[int]:
     """
     Returns the minimal rank of a value in ranking k for which pred(value) is True.
     If no such value exists, returns None.
@@ -298,7 +298,7 @@ def rank_of(pred, k):
             return r
     return None
 
-def failure():
+def failure() -> Generator[Tuple[Any, int], None, None]:
     """
     Returns an empty ranking (no values).
 
@@ -313,7 +313,7 @@ def failure():
     return
     yield  # This is never reached, but makes this a generator
 
-def rf_equal(k1, k2, max_items=1000):
+def rf_equal(k1: Iterable[Tuple[Any, int]], k2: Iterable[Tuple[Any, int]], max_items: int = 1000) -> bool:
     """
     Returns True if k1 and k2 are equivalent rankings (same values at same ranks, order irrelevant).
     Only compares up to max_items items for each ranking to avoid non-termination on infinite rankings.
@@ -330,7 +330,7 @@ def rf_equal(k1, k2, max_items=1000):
     s2 = to_set(k2)
     return s1 == s2
 
-def rf_to_hash(k, max_items=1000):
+def rf_to_hash(k: Iterable[Tuple[Any, int]], max_items: int = 1000) -> Dict[Any, int]:
     """
     Converts a ranking k to a dict mapping each finitely ranked value to its rank.
     Only collects up to max_items items to avoid non-termination on infinite rankings.
@@ -342,7 +342,7 @@ def rf_to_hash(k, max_items=1000):
         result[v] = r
     return result
 
-def rf_to_assoc(k, max_items=None):
+def rf_to_assoc(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -> List[Tuple[Any, int]]:
     """
     Converts the ranking k to an association list (list of (value, rank) pairs),
     sorted in non-decreasing order of rank. If max_items is set, only collects up to that many items.
@@ -357,7 +357,7 @@ def rf_to_assoc(k, max_items=None):
             items.append(x)
     return sorted(items, key=lambda vr: vr[1])
 
-def rf_to_stream(k, max_items=None):
+def rf_to_stream(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -> Generator[Tuple[Any, int], None, None]:
     """
     Converts the ranking k to a generator (stream) of (value, rank) pairs in non-decreasing order of rank.
     If max_items is set, only yields up to that many items.
