@@ -1,8 +1,8 @@
-# LLM Workflow Guidelines
+# LLM Implementation Introduction
 
-This file is intended to establish the base workflow requirments for LLM coding partners. LLM coding partners should work to ensure this workflow is adhered to while providing assistance to help ensure consistent code quality.
+This file is intended to establish the base implementation guidelines for LLM coding partners. LLM coding partners should work to ensure these guidelines are closely followed to help ensure consistent code quality.
 
-## Workflow Requirements
+## Implementation Guidelines
 - All code changes must be made in a feature branch, not directly in the master branch.
   - Check that the feature branch is up-to-date with the master branch before starting work.
   - Check that a freature branch has been created before starting work.
