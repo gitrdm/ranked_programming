@@ -1,13 +1,13 @@
-# test_addInts.py -- Python test for SWIG-wrapped Nim C API
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../build")))
-import ranked_core
+# test_addInts.py -- Disabled: was a hello-world test for initial FFI pipeline
+# This test is now disabled because addInts is not part of the real API.
+# To re-enable, add addInts to the C API and SWIG interface.
+import pytest
+pytest.skip("Disabled: addInts was a hello-world test, not part of the real API.", allow_module_level=True)
 
-def test_addInts():
-    assert ranked_core.addInts(2, 3) == 5
-    assert ranked_core.addInts(-1, 1) == 0
-    print("addInts SWIG binding works!")
+# def test_addInts():
+#     assert ranked_core.addInts(2, 3) == 5
+#     assert ranked_core.addInts(-1, 1) == 0
+#     print("addInts SWIG binding works!")
 
-if __name__ == "__main__":
-    test_addInts()
+# if __name__ == "__main__":
+#     test_addInts()
