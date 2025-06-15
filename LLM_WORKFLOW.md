@@ -21,7 +21,7 @@ This file is intended to establish the base workflow requirments for LLM coding 
   - Ensure all emphasis/strong markers are properly closed.
   - Escape asterisks in docstrings by using double backticks (``*args`` and ``**kwargs``) in both the Args section and anywhere else they appear.
 - Treat Sphinx warnings as errors
-- Fix Sphinx warnings and errors for any documentation that has warnings or erros after any docstring or documentation edit.
+- Fix Sphinx warnings and errors for any documentation that has warnings or errors after any docstring or documentation edit.
 - Follow PEP8 and use `black` for code formatting.
 - Use descriptive commit messages and create feature branches for significant changes.
 - After logic changes, always commit your changes with a descriptive message and push to the remote repository (i.e., run `git commit` and `git push`).
