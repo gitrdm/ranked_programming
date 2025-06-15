@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Theory: An Interactive Exploration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Academic Neutrals -->
+    <!-- Application Structure Plan: A non-linear, single-page application with a sticky top navigation for easy access to key thematic sections: Foundations, Algorithms, Applications, and Comparisons. This structure is chosen over a linear report format to empower the user to explore concepts based on interest, particularly the 'Algorithms' section as requested. The flow starts with a high-level overview and then allows deep dives into interactive modules. For example, the 'Algorithms' section uses a tabbed interface to demonstrate different computational aspects (NMR, c-Representations) in a digestible, hands-on manner. This user-centric design prioritizes exploration and understanding over passive reading. -->
+    <!-- Visualization & Content Choices: The application uses interactive elements to translate abstract concepts into tangible experiences. 1) 'Foundations': An interactive bar chart (Chart.js) shows how ranks of possible worlds define belief states, making the κ and τ functions intuitive. 2) 'Non-Monotonic Reasoning': A step-by-step interactive scenario with a dynamically updating Chart.js bar chart demonstrates how the theory handles defeasible inference (the 'Tweety' problem). Goal: Demonstrate Change. 3) 'c-Representations': An interactive form allows users to input rules and penalties, instantly seeing the calculated world ranks. Goal: Explain a Process. 4) 'Comparisons': Styled HTML tables provide clear, side-by-side comparisons of different formalisms. Goal: Compare & Disambiguate. All choices adhere to the NO SVG/Mermaid constraint. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            color: #1e293b; /* slate-800 */
+        }
+        .nav-link {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #0369a1; /* sky-700 */
+            border-bottom-color: #0369a1;
+        }
+        .content-section {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .content-section.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background-color: #0369a1; /* sky-700 */
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 40vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold text-slate-800">Ranking Theory Explorer</h1>
+            <div class="hidden md:flex items-center space-x-8 text-slate-600 font-medium">
+                <a data-target="foundations" class="nav-link border-b-2 border-transparent pb-1">Foundations</a>
+                <a data-target="algorithms" class="nav-link border-b-2 border-transparent pb-1">Algorithms</a>
+                <a data-target="applications" class="nav-link border-b-2 border-transparent pb-1">Applications & Context</a>
+                <a data-target="critique" class="nav-link border-b-2 border-transparent pb-1">Critique & Future</a>
+            </div>
+            <div class="md:hidden">
+                <select id="mobile-nav" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                    <option value="foundations">Foundations</option>
+                    <option value="algorithms">Algorithms</option>
+                    <option value="applications">Applications & Context</option>
+                    <option value="critique">Critique & Future</option>
+                </select>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-8 md:py-12">
+
+        <section id="intro" class="text-center mb-12">
+            <h2 class="text-3xl md:text-4xl font-bold text-sky-800 mb-4">The Laws of Belief in Silicon</h2>
+            <p class="max-w-3xl mx-auto text-lg text-slate-600">
+                An interactive exploration of Wolfgang Spohn's Ranking Theory. This application translates the dense formalisms of rational belief into dynamic, understandable visualizations. Dive in to see how we can model belief, reason, and even causality with a simple, yet powerful, idea: ranking possible worlds by their implausibility.
+            </p>
+        </section>
+
+        <div id="app-content">
+
+            <!-- Foundations Section -->
+            <section id="foundations" class="content-section">
+                <div class="text-center mb-12">
+                     <h3 class="text-2xl md:text-3xl font-bold text-slate-800">Foundations: Why and What is Ranking Theory?</h3>
+                     <p class="max-w-3xl mx-auto mt-2 text-md text-slate-500">This section explores the problems that Ranking Theory solves and its core building blocks. It provides a formal system for representing not just what an agent believes, but how firmly they believe it, and how those beliefs change in a rational way.</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 items-start">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h4 class="font-bold text-xl mb-3 text-sky-700">The Problems to Solve</h4>
+                        <p class="text-slate-600 mb-4">Ranking Theory was developed to overcome key limitations in its predecessors, Bayesian probability and AGM belief revision theory.</p>
+                        <div class="space-y-4">
+                            <div>
+                                <h5 class="font-semibold">The Lottery Paradox (vs. Bayesianism)</h5>
+                                <p class="text-sm text-slate-500">How can you believe every individual lottery ticket will lose, without believing the contradiction that *all* tickets will lose? Ranking Theory solves this by defining belief as "disbelief in the negation," which preserves deductive closure.</p>
+                            </div>
+                            <div>
+                                <h5 class="font-semibold">Iterated Revision (vs. AGM)</h5>
+                                <p class="text-sm text-slate-500">How does an agent's entire epistemic state update after learning new information, so they are ready for the *next* piece of evidence? Ranking Theory provides a fully dynamic model where the output of a belief update is another complete ranking function, ready for iteration.</p>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="bg-white p-6 rounded-lg shadow">
+                        <h4 class="font-bold text-xl mb-3 text-sky-700">Formal Architecture: From Disbelief to Belief</h4>
+                        <p class="text-slate-600 mb-2">The theory is built on a primitive notion of "graded disbelief" or "surprise". Belief is a derived concept. Interact below to see how it works.</p>
+                        <div id="belief-state-interactive" class="p-4 border rounded-lg bg-slate-50">
+                             <div class="mb-4">
+                                <label for="rank-slider-not-a" class="block text-sm font-medium text-slate-700">Disbelief in "The proposition is FALSE" (κ(¬A))</label>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs">0</span>
+                                    <input id="rank-slider-not-a" type="range" min="0" max="5" value="2" class="w-full">
+                                    <span class="text-xs">5</span>
+                                </div>
+                             </div>
+                             <div class="mb-4">
+                                <label for="rank-slider-a" class="block text-sm font-medium text-slate-700">Disbelief in "The proposition is TRUE" (κ(A))</label>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs">0</span>
+                                    <input id="rank-slider-a" type="range" min="0" max="5" value="0" class="w-full">
+                                    <span class="text-xs">5</span>
+                                </div>
+                             </div>
+                             <div id="belief-state-output" class="text-center p-4 rounded-md font-bold text-lg transition-all duration-300">
+                                 <!-- State will be rendered here -->
+                             </div>
+                             <p class="text-xs text-center text-slate-500 mt-2">Note: The Law of Negation requires that for any proposition A, either κ(A) or κ(¬A) must be 0. The slider will enforce this.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Algorithms Section -->
+            <section id="algorithms" class="content-section">
+                <div class="text-center mb-12">
+                     <h3 class="text-2xl md:text-3xl font-bold text-slate-800">The Algorithmic Engine</h3>
+                     <p class="max-w-3xl mx-auto mt-2 text-md text-slate-500">This section addresses your specific interest: how is Ranking Theory realized computationally? We explore its role in non-monotonic reasoning and the clever algorithms developed to make it tractable for AI systems.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="mb-6 border-b border-slate-200">
+                        <nav class="flex space-x-1 -mb-px" aria-label="Tabs">
+                            <button data-target="nmr" class="tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg">Non-Monotonic Reasoning</button>
+                            <button data-target="crep" class="tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg">c-Representations</button>
+                            <button data-target="dynamic" class="tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg">Dynamic Updates</button>
+                        </nav>
+                    </div>
+
+                    <div id="nmr" class="tab-content">
+                        <h4 class="font-bold text-xl mb-2 text-sky-700">Interactive Demo: The "Tweety" Problem</h4>
+                        <p class="text-slate-600 mb-6">A classic AI problem is reasoning with defaults and exceptions (e.g., "Birds fly," but "Penguins don't fly"). See how Ranking Theory handles this by ordering worlds by plausibility. The lowest rank represents the most plausible (least surprising) state of affairs.</p>
+                        <div class="grid lg:grid-cols-2 gap-8 items-center">
+                            <div>
+                                <div id="tweety-controls" class="space-y-3">
+                                    <p class="font-medium">Current Knowledge:</p>
+                                    <p id="tweety-knowledge" class="p-3 bg-slate-100 rounded-md text-slate-700 min-h-[50px]">Initial state. We have no specific knowledge about Tweety.</p>
+                                    <p class="font-medium">Conclusion:</p>
+                                    <p id="tweety-conclusion" class="p-3 bg-sky-100 text-sky-800 rounded-md font-semibold min-h-[50px]">Suspended judgment.</p>
+                                    <div class="flex flex-wrap gap-2 pt-2">
+                                        <button id="tweety-learn-bird" class="bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700 transition">Learn: Tweety is a Bird</button>
+                                        <button id="tweety-learn-penguin" class="bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700 transition">Learn: Tweety is a Penguin</button>
+                                        <button id="tweety-reset" class="bg-slate-500 text-white px-4 py-2 rounded-md hover:bg-slate-600 transition">Reset</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="tweetyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="crep" class="tab-content">
+                         <h4 class="font-bold text-xl mb-2 text-sky-700">c-Representations: From Rules to Ranks</h4>
+                         <p class="text-slate-600 mb-6">Directly ranking all possible worlds is computationally impossible for large systems. **c-Representations**, developed by Gabriele Kern-Isberner, offer a solution. We define ranks compositionally from a smaller set of rules. A world's rank is the sum of "penalties" from all the rules it violates. Interactively build a knowledge base below.</p>
+                         <div class="grid lg:grid-cols-2 gap-8 items-start">
+                            <div class="space-y-4">
+                                <div>
+                                    <h5 class="font-medium mb-2">Knowledge Base (Default Rules)</h5>
+                                    <div class="space-y-2">
+                                        <div class="flex items-center space-x-2">
+                                            <input type="checkbox" id="rule1" name="rules" value="1" class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500" checked>
+                                            <label for="rule1" class="text-sm">Rule 1: Birds fly. (Penalty: 1)</label>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <input type="checkbox" id="rule2" name="rules" value="2" class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500" checked>
+                                            <label for="rule2" class="text-sm">Rule 2: Penguins don't fly. (Penalty: 2)</label>
+                                        </div>
+                                         <div class="flex items-center space-x-2">
+                                            <input type="checkbox" id="rule3" name="rules" value="1" class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+                                            <label for="rule3" class="text-sm">Rule 3: Penguins are birds. (Penalty: 1)</label>
+                                        </div>
+                                    </div>
+                                    <button id="calculate-crep" class="mt-4 bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700 transition">Calculate Ranks</button>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 class="font-medium mb-2">Resulting World Ranks</h5>
+                                <div id="crep-output" class="p-4 bg-slate-50 rounded-lg text-sm space-y-2">
+                                    <p>Select rules and click "Calculate Ranks" to see the results.</p>
+                                </div>
+                            </div>
+                         </div>
+                    </div>
+                    
+                    <div id="dynamic" class="tab-content">
+                        <h4 class="font-bold text-xl mb-2 text-sky-700">Dynamic Updates via Local Combination</h4>
+                        <p class="text-slate-600 mb-6">Prakash Shenoy reformulated belief revision as a simple **pointwise addition** of disbeliefs. This makes dynamic updates computationally efficient, especially in graphical models. This demo shows how a prior belief state combines with new evidence to form a posterior belief state.</p>
+                        <div class="grid md:grid-cols-3 gap-6 text-center">
+                            <div>
+                                <h5 class="font-semibold mb-2">Prior Beliefs</h5>
+                                <div class="chart-container h-64">
+                                    <canvas id="priorChart"></canvas>
+                                </div>
+                            </div>
+                             <div>
+                                <h5 class="font-semibold mb-2">New Evidence</h5>
+                                <div class="chart-container h-64">
+                                    <canvas id="evidenceChart"></canvas>
+                                </div>
+                            </div>
+                             <div>
+                                <h5 class="font-semibold mb-2">Posterior Beliefs</h5>
+                                <div class="chart-container h-64">
+                                    <canvas id="posteriorChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-center mt-4 text-sm text-slate-500">Posterior Rank = Prior Rank + Evidence Rank (then normalized).</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Applications Section -->
+            <section id="applications" class="content-section">
+                <div class="text-center mb-12">
+                     <h3 class="text-2xl md:text-3xl font-bold text-slate-800">Applications & Context</h3>
+                     <p class="max-w-3xl mx-auto mt-2 text-md text-slate-500">Ranking Theory is not just for belief revision. It provides a radical, epistemic foundation for causation and must be distinguished from other "ranking" paradigms in science and technology.</p>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                         <h4 class="font-bold text-xl mb-3 text-sky-700">Causal Inference: A Projectivist View</h4>
+                         <p class="text-slate-600 mb-4">Unlike standard causal models that view causality as an objective feature of the world, Spohn's theory is **projectivist**: causation is an "objectification" of our rational belief structures.</p>
+                         <div class="border-t pt-4">
+                             <p class="font-semibold">"A causes B" is analyzed as:</p>
+                             <p class="mt-2 p-3 bg-slate-50 rounded-md text-slate-700">A is a stable, context-invariant <span class="font-bold text-sky-700">reason</span> for B in a rational agent's belief state.</p>
+                             <p class="text-sm mt-2 text-slate-500">This contrasts with Judea Pearl's SCMs, where causation is defined by interventions in a real-world system.</p>
+                         </div>
+                    </div>
+                     <div class="bg-white p-6 rounded-lg shadow">
+                         <h4 class="font-bold text-xl mb-3 text-sky-700">Distinguishing "Ranking" Paradigms</h4>
+                         <p class="text-slate-600 mb-4">The term "ranking" is used elsewhere. It's crucial not to confuse them.</p>
+                         <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-100 text-slate-600">
+                                    <tr>
+                                        <th class="p-3 font-semibold">Paradigm</th>
+                                        <th class="p-3 font-semibold">Object Ranked</th>
+                                        <th class="p-3 font-semibold">Goal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b">
+                                        <td class="p-3 font-bold text-sky-700">Spohn's Ranking Theory</td>
+                                        <td class="p-3">Possible Worlds</td>
+                                        <td class="p-3">Model rational belief & its dynamics.</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="p-3">Learning-to-Rank (ML)</td>
+                                        <td class="p-3">Documents, Products, etc.</td>
+                                        <td class="p-3">Optimize predictive relevance for search/recs.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-3">Social Choice Theory</td>
+                                        <td class="p-3">Political Candidates</td>
+                                        <td class="p-3">Aggregate individual preferences into a fair group decision.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                         </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Critique Section -->
+            <section id="critique" class="content-section">
+                <div class="text-center mb-12">
+                     <h3 class="text-2xl md:text-3xl font-bold text-slate-800">Critique & Future Directions</h3>
+                     <p class="max-w-3xl mx-auto mt-2 text-md text-slate-500">No theory is perfect. Here's a balanced look at Ranking Theory's strengths, its challenges, and where research is headed next.</p>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8">
+                     <div class="bg-white p-6 rounded-lg shadow">
+                         <h4 class="font-bold text-xl mb-3 text-green-700">Strengths</h4>
+                         <ul class="space-y-3 list-disc list-inside text-slate-600">
+                             <li><span class="font-semibold">Theoretical Unification:</span> Elegantly combines graded belief and belief simpliciter, solving the Lottery Paradox.</li>
+                             <li><span class="font-semibold">Complete Dynamics:</span> Provides a fully iterable model of belief revision, an advance over AGM.</li>
+                             <li><span class="font-semibold">Expressive Power:</span> Offers deep, principled accounts of non-monotonic reasoning, causation, and reasons.</li>
+                         </ul>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                         <h4 class="font-bold text-xl mb-3 text-amber-700">Weaknesses & Challenges</h4>
+                         <ul class="space-y-3 list-disc list-inside text-slate-600">
+                            <li><span class="font-semibold">Computational Complexity:</span> Naive implementations are intractable. Relies on clever but complex methods like c-representations and SMT solvers.</li>
+                            <li><span class="font-semibold">Specification of Priors:</span> Like Bayesianism, it struggles to provide a principled way to set the initial ranking function.</li>
+                            <li><span class="font-semibold">Cognitive Plausibility:</span> It's an open question whether humans actually reason using numerical ranks.</li>
+                         </ul>
+                    </div>
+                </div>
+                <div class="mt-8 bg-white p-6 rounded-lg shadow">
+                    <h4 class="font-bold text-xl mb-3 text-sky-700">The Future: A Hybrid Approach</h4>
+                    <p class="text-slate-600">The future of computational Ranking Theory may lie in its hybridization with modern machine learning. The strengths and weaknesses are complementary:</p>
+                    <ul class="mt-4 space-y-2 text-slate-600">
+                        <li class="flex items-start">
+                            <span class="text-sky-600 font-bold mr-2 mt-1">➔</span>
+                            <span>Use deep learning to <span class="font-semibold">learn</span> the optimal parameters for a c-representation from data, combining ML's power with Ranking Theory's interpretability.</span>
+                        </li>
+                         <li class="flex items-start">
+                            <span class="text-sky-600 font-bold mr-2 mt-1">➔</span>
+                            <span>Incorporate rank-theoretic principles as constraints or regularization terms in machine learning models to encourage them to learn relationships that are not just predictive, but also <span class="font-semibold">rational and explainable.</span></span>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chartJsConfig = {
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: '#1e293b',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#f8fafc',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Rank (Degree of Disbelief)',
+                            font: { weight: 'bold' }
+                        },
+                        grid: {
+                            color: '#e2e8f0' // slate-200
+                        }
+                    },
+                    x: {
+                         grid: {
+                            display: false
+                        }
+                    }
+                },
+                maintainAspectRatio: false,
+                responsive: true
+            };
+
+            // Main Navigation
+            const navLinks = document.querySelectorAll('.nav-link');
+            const mobileNav = document.getElementById('mobile-nav');
+            const contentSections = document.querySelectorAll('.content-section');
+            const introSection = document.getElementById('intro');
+
+            function setActiveSection(targetId) {
+                introSection.style.display = 'none';
+                contentSections.forEach(section => {
+                    section.classList.toggle('active', section.id === targetId);
+                });
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.dataset.target === targetId);
+                });
+                if (mobileNav.value !== targetId) {
+                    mobileNav.value = targetId;
+                }
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => setActiveSection(link.dataset.target));
+            });
+
+            mobileNav.addEventListener('change', (e) => setActiveSection(e.target.value));
+
+            // Set initial state
+            setActiveSection('foundations');
+
+            // Tabbed navigation for Algorithms section
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetId = button.dataset.target;
+                    tabButtons.forEach(btn => btn.classList.remove('active', 'bg-sky-700', 'text-white'));
+                    button.classList.add('active', 'bg-sky-700', 'text-white');
+                    tabContents.forEach(content => content.classList.toggle('active', content.id === targetId));
+                });
+            });
+            // Activate first tab by default
+            if(tabButtons.length) {
+                tabButtons[0].click();
+            }
+
+
+            // --- Interactive Demos ---
+
+            // 1. Belief State Interactive Demo
+            const sliderA = document.getElementById('rank-slider-a');
+            const sliderNotA = document.getElementById('rank-slider-not-a');
+            const beliefStateOutput = document.getElementById('belief-state-output');
+
+            function updateBeliefState() {
+                const kA = parseInt(sliderA.value);
+                const kNotA = parseInt(sliderNotA.value);
+                const tauA = kNotA - kA;
+                
+                let stateText = '';
+                let bgColor = '';
+                let textColor = '';
+
+                if (tauA > 0) {
+                    stateText = `Belief (τ = ${tauA})`;
+                    bgColor = 'bg-green-100';
+                    textColor = 'text-green-800';
+                } else if (tauA < 0) {
+                    stateText = `Disbelief (τ = ${tauA})`;
+                    bgColor = 'bg-red-100';
+                    textColor = 'text-red-800';
+                } else {
+                    stateText = `Suspension (τ = ${tauA})`;
+                    bgColor = 'bg-yellow-100';
+                    textColor = 'text-yellow-800';
+                }
+                beliefStateOutput.textContent = stateText;
+                beliefStateOutput.className = `text-center p-4 rounded-md font-bold text-lg transition-all duration-300 ${bgColor} ${textColor}`;
+            }
+
+            sliderA.addEventListener('input', () => {
+                if (sliderA.value > 0) sliderNotA.value = 0;
+                updateBeliefState();
+            });
+            sliderNotA.addEventListener('input', () => {
+                if (sliderNotA.value > 0) sliderA.value = 0;
+                updateBeliefState();
+            });
+            updateBeliefState();
+            
+            // 2. Tweety Interactive Demo
+            const tweetyChartCtx = document.getElementById('tweetyChart').getContext('2d');
+            const tweetyKnowledge = document.getElementById('tweety-knowledge');
+            const tweetyConclusion = document.getElementById('tweety-conclusion');
+            let tweetyChart;
+
+            const tweetyWorlds = {
+                'Non-Bird': { b: 0, p: 0, f: 0 },
+                'Flying Bird (Non-Penguin)': { b: 1, p: 0, f: 1 },
+                'Non-Flying Bird (Non-Penguin)': { b: 1, p: 0, f: 0 },
+                'Non-Flying Penguin': { b: 1, p: 1, f: 0 },
+                'Flying Penguin': { b: 1, p: 1, f: 1 },
+            };
+
+            const initialRanks = {
+                'Non-Bird': 0,
+                'Flying Bird (Non-Penguin)': 1,
+                'Non-Flying Bird (Non-Penguin)': 3,
+                'Non-Flying Penguin': 2,
+                'Flying Penguin': 4,
+            };
+
+            function drawTweetyChart(ranks) {
+                if(tweetyChart) tweetyChart.destroy();
+                tweetyChart = new Chart(tweetyChartCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(ranks),
+                        datasets: [{
+                            label: 'Rank',
+                            data: Object.values(ranks),
+                            backgroundColor: '#38bdf8', // sky-400
+                            borderColor: '#0284c7', // sky-600
+                            borderWidth: 1
+                        }]
+                    },
+                    options: chartJsConfig
+                });
+            }
+
+            function updateTweetyScenario(state) {
+                let ranks = { ...initialRanks };
+                let knowledgeText = 'Initial state. We have no specific knowledge about Tweety.';
+                let conclusionText = 'Suspended judgment about flying.';
+
+                let relevantWorlds = Object.entries(ranks);
+
+                if (state === 'bird') {
+                    knowledgeText = 'Learned: "Tweety is a Bird". We filter out all non-bird worlds.';
+                    relevantWorlds = Object.entries(ranks).filter(([world, _]) => tweetyWorlds[world].b === 1);
+                } else if (state === 'penguin') {
+                    knowledgeText = 'Learned: "Tweety is a Penguin". We filter out all non-penguin worlds.';
+                    relevantWorlds = Object.entries(ranks).filter(([world, _]) => tweetyWorlds[world].p === 1);
+                }
+
+                const minRank = Math.min(...relevantWorlds.map(w => w[1]));
+                const mostPlausibleWorlds = relevantWorlds.filter(([_, rank]) => rank === minRank);
+                
+                if (mostPlausibleWorlds.length > 0) {
+                    // In this simple model, we assume the first most plausible world determines the conclusion
+                    const conclusionWorld = tweetyWorlds[mostPlausibleWorlds[0][0]];
+                    if (conclusionWorld.f === 1) {
+                         conclusionText = 'Conclusion: Tweety flies.';
+                    } else {
+                         conclusionText = 'Conclusion: Tweety does not fly.';
+                    }
+                }
+                
+                // Dim non-relevant worlds for visualization
+                const displayRanks = {};
+                for (const world in ranks) {
+                    if (relevantWorlds.some(w => w[0] === world)) {
+                        displayRanks[world] = ranks[world];
+                    } else {
+                        displayRanks[world] = Math.max(...Object.values(ranks)) + 1; // Visually push them away
+                    }
+                }
+
+                drawTweetyChart(displayRanks);
+                tweetyKnowledge.textContent = knowledgeText;
+                tweetyConclusion.textContent = conclusionText;
+            }
+            
+            document.getElementById('tweety-learn-bird').addEventListener('click', () => updateTweetyScenario('bird'));
+            document.getElementById('tweety-learn-penguin').addEventListener('click', () => updateTweetyScenario('penguin'));
+            document.getElementById('tweety-reset').addEventListener('click', () => updateTweetyScenario('initial'));
+
+            updateTweetyScenario('initial');
+
+            // 3. c-Representations Demo
+            const crepOutput = document.getElementById('crep-output');
+            document.getElementById('calculate-crep').addEventListener('click', () => {
+                const rules = {
+                    rule1: { text: "Birds fly", penalty: 1, condition: w => w.b && !w.f },
+                    rule2: { text: "Penguins don't fly", penalty: 2, condition: w => w.p && w.f },
+                    rule3: { text: "Penguins are birds", penalty: 1, condition: w => w.p && !w.b },
+                };
+
+                const checkedRules = Array.from(document.querySelectorAll('input[name="rules"]:checked')).map(cb => cb.id);
+
+                let outputHtml = '';
+                for (const worldName in tweetyWorlds) {
+                    const worldState = tweetyWorlds[worldName];
+                    let totalPenalty = 0;
+                    let violatedRules = [];
+                    
+                    checkedRules.forEach(ruleId => {
+                        if (rules[ruleId].condition(worldState)) {
+                            totalPenalty += rules[ruleId].penalty;
+                            violatedRules.push(rules[ruleId].text);
+                        }
+                    });
+                    
+                    outputHtml += `<div class="p-2 border-b last:border-b-0"><span class="font-semibold">${worldName}:</span> Rank ${totalPenalty}`;
+                    if(violatedRules.length > 0) {
+                        outputHtml += ` <span class="text-xs text-red-600">(Violates: ${violatedRules.join(', ')})</span>`;
+                    }
+                    outputHtml += '</div>'
+                }
+                crepOutput.innerHTML = outputHtml;
+            });
+            
+            // 4. Dynamic Updates Demo
+            const priorCtx = document.getElementById('priorChart').getContext('2d');
+            const evidenceCtx = document.getElementById('evidenceChart').getContext('2d');
+            const posteriorCtx = document.getElementById('posteriorChart').getContext('2d');
+            
+            const dynamicWorlds = ['A', 'B', 'C', 'D'];
+            const priorRanks = [1, 0, 2, 3];
+            const evidenceRanks = [0, 2, 0, 1];
+            
+            const posteriorRanksUnnormalized = priorRanks.map((p, i) => p + evidenceRanks[i]);
+            const minPosteriorRank = Math.min(...posteriorRanksUnnormalized);
+            const posteriorRanks = posteriorRanksUnnormalized.map(r => r - minPosteriorRank);
+
+            new Chart(priorCtx, {
+                type: 'bar',
+                data: { labels: dynamicWorlds, datasets: [{ data: priorRanks, backgroundColor: '#64748b' }] },
+                options: chartJsConfig
+            });
+            new Chart(evidenceCtx, {
+                type: 'bar',
+                data: { labels: dynamicWorlds, datasets: [{ data: evidenceRanks, backgroundColor: '#6ee7b7' }] },
+                options: chartJsConfig
+            });
+            new Chart(posteriorCtx, {
+                type: 'bar',
+                data: { labels: dynamicWorlds, datasets: [{ data: posteriorRanks, backgroundColor: '#38bdf8' }] },
+                options: chartJsConfig
+            });
+
+        });
+    </script>
+</body>
+</html>
