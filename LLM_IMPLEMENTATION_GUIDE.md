@@ -1,14 +1,18 @@
 # LLM Implementation Introduction
 
-This file is intended to establish the base implementation guidelines for LLM coding partners. LLM coding partners should work to ensure these guidelines are closely followed to help ensure consistent code quality.
+This file is intended to establish the base implementation guidelines for LLM coding partners; as such, LLM coding partners should work to ensure these guidelines are closely followed to help ensure consistent code quality.
 
 ## Implementation Guidelines
 - All code changes must be made in a feature branch, not directly in the master branch.
   - Check that the feature branch is up-to-date with the master branch before starting work.
   - Check that a freature branch has been created before starting work.
-- A TDD methodology will be followed for all code changes to ensure expectations are explicitly stated in a testable format.
+- A Design-by-Contract (DbC) methodology will be followed for all applicable code blocks to ensure code block expectations are explicitly stated and are tested.
+- A TDD (Test-Driven Development) methodology will be followed for all code changes to ensure expectations are explicitly stated in a testable format.
+  - Write tests for new features and edge cases before or alongside implementation.
   - Write tests for new features and edge cases before or alongside implementation.
 - Install and use logging and tracing to debug and understand code behavior.
+  - Provide recommendations for logging and tracing in the codebase.
+- Provide recommendations for "best practices" for coding logic, program structure, and code organization.
 - All tests must pass after every code edit that impacts code logic and before any commits. This includes:
   - Adding new tests for new features or edge cases.
   - Running the full test suite to ensure no regressions.
