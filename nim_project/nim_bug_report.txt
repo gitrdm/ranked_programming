@@ -1,0 +1,104 @@
+Nim C backend: linker error, missing `.o` files (`@mfoo.nim.o`), only `.c.o` generated
+
+Environment:
+- OS: Ubuntu 22.04 (WSL2)
+- Nim version(s): 2.2.4, #devel
+- GCC version: (see below)
+- Installed via: choosenim
+
+Summary:
+When building a shared library with the C backend, Nim generates only `.c.o` object files in the nimcache, but the linker is invoked with both `.c.o` and `.o` files. This causes linker errors:
+`/usr/bin/ld: cannot find .../@mfoo.nim.o: No such file or directory`
+
+Steps to Reproduce:
+1. Create a minimal Nim file:
+    ```nim
+    # test.nim
+    proc addInts*(a, b: cint): cint {.exportc.} =
+      result = a + b
+    ```
+2. Run:
+    ```bash
+    nim c --app:lib --out:libranked_core.so test.nim
+    ```
+3. Observe the error:
+    ```
+    /usr/bin/ld: cannot find .../@mtest.nim.o: No such file or directory
+    ```
+
+Expected Behavior:
+Nim should generate the required `.o` files, or only pass `.c.o` files to the linker. The build should succeed and produce a shared library.
+
+Actual Behavior:
+- Only `.c.o` files are present in nimcache.
+- The linker is invoked with both `.o` and `.c.o` files for the same source.
+- The build fails with missing `.o` file errors.
+
+What I’ve Tried:
+- Cleaned nimcache and rebuilt.
+- Used both stable and devel Nim toolchains.
+- Tried both `nim c` and `nimble make`.
+- Confirmed the issue occurs both in a project and with a minimal example.
+- No relevant NIM environment variables set.
+
+Additional Info:
+- Full linker command (from verbose output):
+  ```
+  gcc   -shared -o .../libranked_core.so .../@mtest.nim.o .../@mtest.nim.c.o ...
+  ```
+- Directory listing of nimcache:
+  ```
+  @mtest.nim.c
+  @mtest.nim.c.o
+  @mtest.sha1
+  ...
+  ```
+
+Nim version output:
+-------------------
+Nim Compiler Version 1.6.16 [Linux: amd64]
+Compiled at 2023-10-10
+Copyright (c) 2006-2023 by Andreas Rumpf
+
+git hash: 3c9b68dc157804885b14a1984efc25e8b7cc861d
+active boot switches: -d:release
+
+GCC version output:
+-------------------
+gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0
+Copyright (C) 2021 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Contents of test.nim
+"""
+# test.nim -- minimal Nim module with C-exported function for SWIG demo
+
+{.compile: "test.nim".}
+
+proc addInts(a, b: cint): cint {.exportc, dynlib.} =
+  ## Simple demo function to test Nim
+  return a + b
+"""
+
+New information:
+----------------
+- The following minimal file works:
+  ```nim
+  proc addInts*(a, b: cint): cint {.exportc.} =
+    result = a + b
+  ```
+- The following file does NOT work (causes missing `.o` linker error):
+  ```nim
+  {.compile: "test.nim".}
+
+  proc addInts(a, b: cint): cint {.exportc, dynlib.} =
+    return a + b
+  ```
+- Removing the `{.compile: ...}` pragma resolves the issue.
+- The error is triggered by the `{.compile: ...}` pragma pointing to the same file being compiled.
+
+Attachments:
+- Minimal test.nim file
+- Full build log
+- nimcache directory listing
