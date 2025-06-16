@@ -1,0 +1,17 @@
+syntax = "proto3";
+package ranking;
+
+service RankingService {
+  rpc Ping(Empty) returns (Pong);
+  rpc GetSampleRanking(Empty) returns (SampleRankingResponse);
+}
+
+message Empty {}
+message Pong { string message = 1; }
+message SampleRankingResponse {
+  repeated RankedItem items = 1;
+}
+message RankedItem {
+  string value = 1;
+  int32 rank = 2;
+}
