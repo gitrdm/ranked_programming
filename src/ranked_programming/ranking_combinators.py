@@ -34,145 +34,6 @@ from itertools import chain
 logger = logging.getLogger("ranked_programming.ranking_combinators")
 logger.addHandler(logging.NullHandler())
 
-def _validate_bindings(bindings):
-    """
-    Utility to validate a list of (name, value/function) pairs for rlet and rlet_star.
-    Raises TypeError if invalid.
-    """
-    if not isinstance(bindings, list):
-        raise TypeError("bindings must be a list of (name, value/function) pairs")
-    for b in bindings:
-        if not (isinstance(b, tuple) and len(b) == 2 and isinstance(b[0], str)):
-            raise TypeError("Each binding must be a (str, value/function) tuple")
-
-def nrm_exc(
-    v1: object,
-    v2: object,
-    rank2: int = 1
-) -> Generator[Tuple[Any, int], None, None]:
-    """
-    Normal/exceptional choice combinator (lazy version).
-
-    Accepts any value, iterable, or Ranking for v1 and v2. All inputs are normalized automatically.
-    Yields values from v1 at rank 0, then from v2 at rank2, deduplicating by minimal rank for hashable values. Unhashable values are always yielded, even if repeated.
-
-    Args:
-        v1: The normal value(s) (any type, value or ranking).
-        v2: The exceptional value(s) (any type, value or ranking).
-        rank2: The rank (surprise) for v2 (must be int, default 1).
-
-    Raises:
-        TypeError: If rank2 is not an int.
-
-    Supports lazy recursion and infinite structures.
-
-    Example::
-
-        >>> list(nrm_exc("foo", "bar", 1))
-        [("foo", 0), ("bar", 1)]
-        >>> list(nrm_exc([1, 2], [3, 4], 2))
-        [(1, 0), (2, 0), (3, 2), (4, 2)]
-    """
-    import types
-    if v1 is v2 and not isinstance(v1, (Ranking, types.GeneratorType, list, set, tuple)):
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"nrm_exc: yielding {v1!r} at ranks 0 and {rank2}")
-        yield (v1, 0)
-        yield (v1, rank2)
-        return
-    if not isinstance(rank2, int):
-        raise TypeError(f"rank2 must be an int, got {type(rank2).__name__}")
-    for v, r in deduplicate_hashable(
-        chain(_flatten_ranking_like(v1, 0), _flatten_ranking_like(v2, rank2))
-    ):
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"nrm_exc: yielding {v!r} at rank {r}")
-        yield (v, r)
-
-
-def rlet_star(
-    bindings: list[Tuple[str, object]],
-    body: Callable[..., object]
-) -> Generator[Tuple[Any, int], None, None]:
-    """
-    Sequential dependent bindings (lazy, like Scheme's ``let*``).
-
-    Each binding can be a value, a Ranking, or a function of previous variables returning a generator or Ranking. All inputs are normalized automatically.
-    The body can return a value, a Ranking, or a generator; all are automatically flattened.
-
-    Args:
-        bindings: List of (name, value/function) pairs.
-        body: Function returning the final value(s).
-
-    Yields:
-        Tuple[Any, int]: (value, rank) pairs.
-
-    Example::
-
-        >>> def f(x, y):
-        ...     return x + y
-        >>> list(rlet_star([('x', [1, 2]), ('y', lambda x: [x, x+1])], f))
-        [(2, 0), (3, 0), (3, 0), (4, 0)]
-    """
-    _validate_bindings(bindings)
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.debug(f"rlet_star: starting with bindings={bindings}")
-    def helper(idx: int, env: tuple, acc_rank: int):
-        if idx == len(bindings):
-            result = body(*env)
-            for v, r in _flatten_ranking_like(result, acc_rank):
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug(f"rlet_star: yielding {v!r} at rank {r}")
-                yield (v, r)
-            return
-        name, val = bindings[idx]
-        ranking = as_ranking(val, env)
-        for v, r in ranking:
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(f"rlet_star: binding {name}={v!r} at rank {r}")
-            yield from helper(idx + 1, env + (v,), acc_rank + r)
-    return helper(0, tuple(), 0)
-
-
-def rlet(
-    bindings: list[Tuple[str, object]],
-    body: Callable[..., object]
-) -> Generator[Tuple[Any, int], None, None]:
-    """
-    Parallel (cartesian product) bindings (lazy, like Scheme's let).
-
-    Each binding can be a value, a Ranking, or a function of no arguments returning a generator or Ranking. All inputs are normalized automatically.
-    Yields (body(values), total_rank) lazily for each combination.
-
-    Args:
-        bindings: List of (name, value/function) pairs.
-        body: Function returning the final value(s).
-
-    Yields:
-        Tuple[Any, int]: (value, rank) pairs.
-
-    Example::
-
-        >>> def f(x, y):
-        ...     return x * y
-        >>> list(rlet([('x', [1, 2]), ('y', [10, 20])], f))
-        [(10, 0), (20, 0), (20, 0), (40, 0)]
-    """
-    _validate_bindings(bindings)
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.debug(f"rlet: starting with bindings={bindings}")
-    rankings = [as_ranking(val) for _, val in bindings]
-    from itertools import product
-    for combo in product(*rankings):
-        values = [v for v, _ in combo]
-        total_rank = sum(r for _, r in combo)
-        result = body(*values)
-        for v, r in _flatten_ranking_like(result, total_rank):
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(f"rlet: yielding {v!r} at rank {r}")
-            yield (v, r)
-
-
 def _as_ranking_or_pairs(val, env=()):
     """
     Like as_ranking, but if val is a list/tuple/set of (value, rank) pairs, treat as a ranking, not atomic.
@@ -185,6 +46,76 @@ def _as_ranking_or_pairs(val, env=()):
         return Ranking(lambda: (x for x in val))
     else:
         return as_ranking(val, env)
+
+def _validate_bindings(bindings):
+    """
+    Utility to validate a list of (name, value/function) pairs for rlet and rlet_star.
+    Raises TypeError if invalid.
+    """
+    if not isinstance(bindings, list):
+        raise TypeError("bindings must be a list of (name, value/function) pairs")
+    for b in bindings:
+        if not (isinstance(b, tuple) and len(b) == 2 and isinstance(b[0], str)):
+            raise TypeError("Each binding must be a (str, value/function) tuple")
+
+def bang(v: Any) -> Generator[Tuple[Any, int], None, None]:
+    """
+    Truth function: Returns a ranking where v is ranked 0 and anything else is ranked infinity.
+
+    Args:
+        v: The value to be ranked 0.
+
+    Yields:
+        (value, rank): (v, 0)
+
+    Edge cases:
+        - Always yields exactly one (v, 0) pair.
+
+    Example::
+
+        >>> list(bang(5))
+        [(5, 0)]
+    """
+    yield (v, 0)
+
+def construct_ranking(*pairs: Tuple[Any, int]) -> Generator[Tuple[Any, int], None, None]:
+    """
+    Constructs a ranking from an association list of (value, rank) pairs.
+    The first rank must be 0, and ranks must be sorted in non-decreasing order.
+
+    Args:
+        pairs: Tuples of (value, rank).
+
+    Yields:
+        (value, rank): Each value with its specified rank.
+
+    Edge cases:
+        - If no pairs are given, yields nothing (empty ranking).
+        - Raises TypeError if any argument is not a (value, rank) tuple.
+        - Raises ValueError if any rank is negative, not an int, or if ranks are not sorted.
+
+    Example::
+
+        >>> list(construct_ranking(("x", 0), ("y", 1), ("z", 5)))
+        [("x", 0), ("y", 1), ("z", 5)]
+        >>> list(construct_ranking())
+        []
+    """
+    if not all(isinstance(p, tuple) and len(p) == 2 for p in pairs):
+        raise TypeError("All arguments must be (value, rank) pairs")
+    if not all(isinstance(r, int) and r >= 0 for _, r in pairs):
+        raise ValueError("All ranks must be non-negative integers")
+    if not pairs:
+        return
+        yield  # never reached
+    prev_rank = None
+    for i, (v, r) in enumerate(pairs):
+        if i == 0 and r != 0:
+            raise ValueError("First rank must be 0")
+        if prev_rank is not None and r < prev_rank:
+            raise ValueError("Ranks must be sorted in non-decreasing order")
+        yield (v, r)
+        prev_rank = r
 
 def either_of(*rankings: object) -> Generator[Tuple[Any, int], None, None]:
     """
@@ -300,44 +231,65 @@ def either_or(*ks: object, base_rank: int = 1) -> Generator[Tuple[Any, int], Non
         yield (v, min(ranks))
 
 
-def construct_ranking(*pairs: Tuple[Any, int]) -> Generator[Tuple[Any, int], None, None]:
+def failure() -> Generator[Tuple[Any, int], None, None]:
     """
-    Constructs a ranking from an association list of (value, rank) pairs.
-    The first rank must be 0, and ranks must be sorted in non-decreasing order.
+    Returns an empty ranking (no values).
 
-    Args:
-        pairs: Tuples of (value, rank).
-
-    Yields:
-        (value, rank): Each value with its specified rank.
-
-    Edge cases:
-        - If no pairs are given, yields nothing (empty ranking).
-        - Raises TypeError if any argument is not a (value, rank) tuple.
-        - Raises ValueError if any rank is negative, not an int, or if ranks are not sorted.
+    Returns:
+        generator: An empty generator.
 
     Example::
 
-        >>> list(construct_ranking(("x", 0), ("y", 1), ("z", 5)))
-        [("x", 0), ("y", 1), ("z", 5)]
-        >>> list(construct_ranking())
+        >>> list(failure())
         []
     """
-    if not all(isinstance(p, tuple) and len(p) == 2 for p in pairs):
-        raise TypeError("All arguments must be (value, rank) pairs")
-    if not all(isinstance(r, int) and r >= 0 for _, r in pairs):
-        raise ValueError("All ranks must be non-negative integers")
-    if not pairs:
+    return
+    yield  # This is never reached, but makes this a generator
+
+
+def nrm_exc(
+    v1: object,
+    v2: object,
+    rank2: int = 1
+) -> Generator[Tuple[Any, int], None, None]:
+    """
+    Normal/exceptional choice combinator (lazy version).
+
+    Accepts any value, iterable, or Ranking for v1 and v2. All inputs are normalized automatically.
+    Yields values from v1 at rank 0, then from v2 at rank2, deduplicating by minimal rank for hashable values. Unhashable values are always yielded, even if repeated.
+
+    Args:
+        v1: The normal value(s) (any type, value or ranking).
+        v2: The exceptional value(s) (any type, value or ranking).
+        rank2: The rank (surprise) for v2 (must be int, default 1).
+
+    Raises:
+        TypeError: If rank2 is not an int.
+
+    Supports lazy recursion and infinite structures.
+
+    Example::
+
+        >>> list(nrm_exc("foo", "bar", 1))
+        [("foo", 0), ("bar", 1)]
+        >>> list(nrm_exc([1, 2], [3, 4], 2))
+        [(1, 0), (2, 0), (3, 2), (4, 2)]
+    """
+    import types
+    if v1 is v2 and not isinstance(v1, (Ranking, types.GeneratorType, list, set, tuple)):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"nrm_exc: yielding {v1!r} at ranks 0 and {rank2}")
+        yield (v1, 0)
+        yield (v1, rank2)
         return
-        yield  # never reached
-    prev_rank = None
-    for i, (v, r) in enumerate(pairs):
-        if i == 0 and r != 0:
-            raise ValueError("First rank must be 0")
-        if prev_rank is not None and r < prev_rank:
-            raise ValueError("Ranks must be sorted in non-decreasing order")
+    if not isinstance(rank2, int):
+        raise TypeError(f"rank2 must be an int, got {type(rank2).__name__}")
+    for v, r in deduplicate_hashable(
+        chain(_flatten_ranking_like(v1, 0), _flatten_ranking_like(v2, rank2))
+    ):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"nrm_exc: yielding {v!r} at rank {r}")
         yield (v, r)
-        prev_rank = r
 
 
 def rank_of(pred: Callable[[Any], bool], k: Iterable[Tuple[Any, int]]) -> Optional[int]:
@@ -363,134 +315,6 @@ def rank_of(pred: Callable[[Any], bool], k: Iterable[Tuple[Any, int]]) -> Option
         if pred(v):
             return r
     return None
-
-
-def failure() -> Generator[Tuple[Any, int], None, None]:
-    """
-    Returns an empty ranking (no values).
-
-    Returns:
-        generator: An empty generator.
-
-    Example::
-
-        >>> list(failure())
-        []
-    """
-    return
-    yield  # This is never reached, but makes this a generator
-
-
-def rf_equal(k1: Iterable[Tuple[Any, int]], k2: Iterable[Tuple[Any, int]], max_items: int = 1000) -> bool:
-    """
-    Returns True if k1 and k2 are equivalent rankings (same values at same ranks, order irrelevant).
-    Only compares up to max_items items for each ranking to avoid non-termination on infinite rankings.
-
-    Edge cases:
-        - If either ranking is empty, returns True if both are empty, False otherwise.
-        - If max_items is 0, always returns True.
-
-    Example::
-
-        >>> rf_equal([('a', 0), ('b', 1)], [('b', 1), ('a', 0)])
-        True
-        >>> rf_equal([('a', 0)], [('a', 1)])
-        False
-        >>> rf_equal([], [])
-        True
-        >>> rf_equal([('a', 0)], [])
-        False
-    """
-    def to_set(ranking):
-        items = set()
-        for i, (v, r) in enumerate(ranking):
-            if i >= max_items:
-                break
-            items.add((v, r))
-        return items
-    s1 = to_set(k1)
-    s2 = to_set(k2)
-    return s1 == s2
-
-
-def rf_to_hash(k: Iterable[Tuple[Any, int]], max_items: int = 1000) -> Dict[Any, int]:
-    """
-    Converts a ranking k to a dict mapping each finitely ranked value to its rank.
-    Only collects up to max_items items to avoid non-termination on infinite rankings.
-
-    Edge cases:
-        - If k is empty, returns an empty dict.
-        - If max_items is 0, returns an empty dict.
-        - If duplicate values are present, the last one seen is used.
-
-    Example::
-
-        >>> rf_to_hash([('a', 0), ('b', 1)])
-        {'a': 0, 'b': 1}
-        >>> rf_to_hash([])
-        {}
-    """
-    result = {}
-    for i, (v, r) in enumerate(k):
-        if i >= max_items:
-            break
-        result[v] = r
-    return result
-
-
-def rf_to_assoc(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -> List[Tuple[Any, int]]:
-    """
-    Converts the ranking k to an association list (list of (value, rank) pairs),
-    sorted in non-decreasing order of rank. If max_items is set, only collects up to that many items.
-
-    Edge cases:
-        - If k is empty, returns an empty list.
-        - If max_items is 0, returns an empty list.
-
-    Example::
-
-        >>> rf_to_assoc([('b', 1), ('a', 0)])
-        [('a', 0), ('b', 1)]
-        >>> rf_to_assoc([])
-        []
-    """
-    if max_items is None:
-        items = list(k)
-    else:
-        items = []
-        for i, x in enumerate(k):
-            if i >= max_items:
-                break
-            items.append(x)
-    return sorted(items, key=lambda vr: vr[1])
-
-
-def rf_to_stream(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -> Generator[Tuple[Any, int], None, None]:
-    """
-    Converts the ranking k to a generator (stream) of (value, rank) pairs in non-decreasing order of rank.
-    If max_items is set, only yields up to that many items.
-
-    Edge cases:
-        - If k is empty, yields nothing.
-        - If max_items is 0, yields nothing.
-
-    Example::
-
-        >>> list(rf_to_stream([('b', 1), ('a', 0]]))
-        [('a', 0), ('b', 1)]
-        >>> list(rf_to_stream([]))
-        []
-    """
-    if max_items is None:
-        items = list(k)
-    else:
-        items = []
-        for i, x in enumerate(k):
-            if i >= max_items:
-                break
-            items.append(x)
-    for item in sorted(items, key=lambda vr: vr[1]):
-        yield item
 
 
 def ranked_apply(
@@ -537,22 +361,196 @@ def ranked_apply(
                 logger.debug(f"ranked_apply: yielding {v!r} at rank {r}")
             yield (v, r)
 
-def bang(v: Any) -> Generator[Tuple[Any, int], None, None]:
+def rf_equal(k1: Iterable[Tuple[Any, int]], k2: Iterable[Tuple[Any, int]], max_items: int = 1000) -> bool:
     """
-    Truth function: Returns a ranking where v is ranked 0 and anything else is ranked infinity.
-
-    Args:
-        v: The value to be ranked 0.
-
-    Yields:
-        (value, rank): (v, 0)
+    Returns True if k1 and k2 are equivalent rankings (same values at same ranks, order irrelevant).
+    Only compares up to max_items items for each ranking to avoid non-termination on infinite rankings.
 
     Edge cases:
-        - Always yields exactly one (v, 0) pair.
+        - If either ranking is empty, returns True if both are empty, False otherwise.
+        - If max_items is 0, always returns True.
 
     Example::
 
-        >>> list(bang(5))
-        [(5, 0)]
+        >>> rf_equal([('a', 0), ('b', 1)], [('b', 1), ('a', 0)])
+        True
+        >>> rf_equal([('a', 0)], [('a', 1)])
+        False
+        >>> rf_equal([], [])
+        True
+        >>> rf_equal([('a', 0)], [])
+        False
     """
-    yield (v, 0)
+    def to_set(ranking):
+        items = set()
+        for i, (v, r) in enumerate(ranking):
+            if i >= max_items:
+                break
+            items.add((v, r))
+        return items
+    s1 = to_set(k1)
+    s2 = to_set(k2)
+    return s1 == s2
+
+
+def rf_to_assoc(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -> List[Tuple[Any, int]]:
+    """
+    Converts the ranking k to an association list (list of (value, rank) pairs),
+    sorted in non-decreasing order of rank. If max_items is set, only collects up to that many items.
+
+    Edge cases:
+        - If k is empty, returns an empty list.
+        - If max_items is 0, returns an empty list.
+
+    Example::
+
+        >>> rf_to_assoc([('b', 1), ('a', 0)])
+        [('a', 0), ('b', 1)]
+        >>> rf_to_assoc([])
+        []
+    """
+    if max_items is None:
+        items = list(k)
+    else:
+        items = []
+        for i, x in enumerate(k):
+            if i >= max_items:
+                break
+            items.append(x)
+    return sorted(items, key=lambda vr: vr[1])
+
+
+def rf_to_hash(k: Iterable[Tuple[Any, int]], max_items: int = 1000) -> Dict[Any, int]:
+    """
+    Converts a ranking k to a dict mapping each finitely ranked value to its rank.
+    Only collects up to max_items items to avoid non-termination on infinite rankings.
+
+    Edge cases:
+        - If k is empty, returns an empty dict.
+        - If max_items is 0, returns an empty dict.
+        - If duplicate values are present, the last one seen is used.
+
+    Example::
+
+        >>> rf_to_hash([('a', 0), ('b', 1)])
+        {'a': 0, 'b': 1}
+        >>> rf_to_hash([])
+        {}
+    """
+    result = {}
+    for i, (v, r) in enumerate(k):
+        if i >= max_items:
+            break
+        result[v] = r
+    return result
+
+
+def rf_to_stream(k: Iterable[Tuple[Any, int]], max_items: Optional[int] = None) -> Generator[Tuple[Any, int], None, None]:
+    """
+    Converts the ranking k to a generator (stream) of (value, rank) pairs in non-decreasing order of rank.
+    If max_items is set, only yields up to that many items.
+
+    Edge cases:
+        - If k is empty, yields nothing.
+        - If max_items is 0, yields nothing.
+
+    Example::
+
+        >>> list(rf_to_stream([('b', 1), ('a', 0]]))
+        [('a', 0), ('b', 1)]
+        >>> list(rf_to_stream([]))
+        []
+    """
+    if max_items is None:
+        items = list(k)
+    else:
+        items = []
+        for i, x in enumerate(k):
+            if i >= max_items:
+                break
+            items.append(x)
+    for item in sorted(items, key=lambda vr: vr[1]):
+        yield item
+
+
+def rlet(
+    bindings: list[Tuple[str, object]],
+    body: Callable[..., object]
+) -> Generator[Tuple[Any, int], None, None]:
+    """
+    Parallel (cartesian product) bindings (lazy, like Scheme's let).
+
+    Each binding can be a value, a Ranking, or a function of no arguments returning a generator or Ranking. All inputs are normalized automatically.
+    Yields (body(values), total_rank) lazily for each combination.
+
+    Args:
+        bindings: List of (name, value/function) pairs.
+        body: Function returning the final value(s).
+
+    Yields:
+        Tuple[Any, int]: (value, rank) pairs.
+
+    Example::
+
+        >>> def f(x, y):
+        ...     return x * y
+        >>> list(rlet([('x', [1, 2]), ('y', [10, 20])], f))
+        [(10, 0), (20, 0), (20, 0), (40, 0)]
+    """
+    _validate_bindings(bindings)
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(f"rlet: starting with bindings={bindings}")
+    rankings = [as_ranking(val) for _, val in bindings]
+    from itertools import product
+    for combo in product(*rankings):
+        values = [v for v, _ in combo]
+        total_rank = sum(r for _, r in combo)
+        result = body(*values)
+        for v, r in _flatten_ranking_like(result, total_rank):
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"rlet: yielding {v!r} at rank {r}")
+            yield (v, r)
+
+
+def rlet_star(
+    bindings: list[Tuple[str, object]],
+    body: Callable[..., object]
+) -> Generator[Tuple[Any, int], None, None]:
+    """
+    Sequential dependent bindings (lazy, like Scheme's ``let*``).
+
+    Each binding can be a value, a Ranking, or a function of previous variables returning a generator or Ranking. All inputs are normalized automatically.
+    The body can return a value, a Ranking, or a generator; all are automatically flattened.
+
+    Args:
+        bindings: List of (name, value/function) pairs.
+        body: Function returning the final value(s).
+
+    Yields:
+        Tuple[Any, int]: (value, rank) pairs.
+
+    Example::
+
+        >>> def f(x, y):
+        ...     return x + y
+        >>> list(rlet_star([('x', [1, 2]), ('y', lambda x: [x, x+1])], f))
+        [(2, 0), (3, 0), (3, 0), (4, 0)]
+    """
+    _validate_bindings(bindings)
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(f"rlet_star: starting with bindings={bindings}")
+    def helper(idx: int, env: tuple, acc_rank: int):
+        if idx == len(bindings):
+            result = body(*env)
+            for v, r in _flatten_ranking_like(result, acc_rank):
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(f"rlet_star: yielding {v!r} at rank {r}")
+                yield (v, r)
+            return
+        name, val = bindings[idx]
+        ranking = as_ranking(val, env)
+        for v, r in ranking:
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"rlet_star: binding {name}={v!r} at rank {r}")
+            yield from helper(idx + 1, env + (v,), acc_rank + r)
+    return helper(0, tuple(), 0)
