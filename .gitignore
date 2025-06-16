@@ -101,3 +101,17 @@ $RECYCLE.BIN/
 # Anaconda distribution
 anaconda3/
 miniconda3/
+
+# Rust build artifacts
+rust_project/**/target/
+
+# Rust lock files (optional for libraries)
+rust_project/**/Cargo.lock
+
+# Python gRPC generated files
+rust_project/**/python_client/ranking_pb2.py
+rust_project/**/python_client/ranking_pb2_grpc.py
+
+# Python bytecode
+rust_project/**/python_client/__pycache__/
+rust_project/**/python_client/*.pyc
