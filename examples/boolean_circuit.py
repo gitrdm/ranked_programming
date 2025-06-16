@@ -46,13 +46,13 @@ if __name__ == "__main__":
 Boolean circuit output ranking (faults and output):
 Rank  (N, O1, O2, output)
 ------------------------
-    0 (True, True, True, True)
-    1 (True, True, True, True)
-    1 (True, True, True, True)
-    2 (False, False, False, False)
-    1 (True, True, True, True)
-    2 (False, False, False, False)
-    2 (True, True, True, True)
-    3 (False, False, False, False)
+   0 (True, True, True, True)
+   1 (True, True, False, False)
+   1 (True, False, True, True)
+   2 (True, False, False, False)
+   1 (False, True, True, True)
+   2 (False, True, False, False)
+   2 (False, False, True, True)
+   3 (False, False, False, False)
 Done
 """
