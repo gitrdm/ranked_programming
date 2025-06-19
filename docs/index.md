@@ -51,6 +51,7 @@ See the following examples for practical usage of MDL-based evidence and result 
 - `examples/boolean_circuit_mdl.py`: Demonstrates MDL penalty calculation for a small boolean circuit, including comparison to a fixed penalty.
 - `examples/boolean_circuit_mdl_result.py`: Shows how to use MDL to set the result penalty in `observe_r`, providing a principled, adaptive alternative to fixed penalties.
 - `examples/mdl_penalty_estimation.py`: Shows five practical approaches to estimating the MDL penalty when the set of possible worlds is too large to enumerate: sampling, analytic counting, bounds, heuristic, and adaptive estimation. Each approach is documented and illustrated in code.
+- `examples/boolean_circuit_mdl_e_x.py`: Demonstrates MDL penalty calculation for use as the evidence penalty in `observe_e_x`, including comparison to a fixed penalty.
 
 These examples provide guidance for principled, scalable evidence and result handling in ranked programming models.
 

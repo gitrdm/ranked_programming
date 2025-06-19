@@ -175,7 +175,7 @@ See the Python docstrings and Sphinx documentation for detailed reference on eac
 - `pr_all(k)`, `pr_first(k)`, `pr_until(rank, k)`, `pr(k)`: Display rankings.
 - `observe_r(result_strength, pred, k)`: Result-oriented conditionalization.
 - `observe_e_x(evidence_strength, pred, k)`: Evidence-oriented conditionalization.
-- `mdl_evidence_penalty(ranking, pred)`: Compute an MDL-based evidence penalty for use with observation combinators. See ``examples/boolean_circuit_mdl.py`` and ``examples/boolean_circuit_mdl_result.py`` for worked examples using evidence and result penalties, respectively.
+- `mdl_evidence_penalty(ranking, pred)`: Compute an MDL-based evidence penalty for use with observation combinators. See ``examples/boolean_circuit_mdl.py``, ``examples/boolean_circuit_mdl_result.py``, and ``examples/boolean_circuit_mdl_e_x.py`` for worked examples using evidence, result, and evidence penalties in `observe_e_x`, respectively.
 - `cut(rank, k)`: Restrict ranking to values with rank <= `rank`.
 - `limit(count, k)`: Restrict ranking to the `count` lowest-ranked values.
 - `is_rank(x)`, `is_ranking(x)`: Type checking for ranks and rankings.
