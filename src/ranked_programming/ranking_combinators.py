@@ -541,15 +541,6 @@ def bang(v: Any) -> Generator[Tuple[Any, int], None, None]:
     """
     Truth function: Returns a ranking where v is ranked 0 and anything else is ranked infinity.
 
-    Args:
-        v: The value to be ranked 0.
-
-    Yields:
-        (value, rank): (v, 0)
-
-    Edge cases:
-        - Always yields exactly one (v, 0) pair.
-
     Example::
 
         >>> list(bang(5))
