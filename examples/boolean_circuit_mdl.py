@@ -21,11 +21,13 @@ pred = lambda x: circuit_output(x) == 1
 
 # Compute MDL penalty
 penalty = mdl_evidence_penalty(ranking, pred)
-
+if penalty >= 10**9:
+    print("MDL penalty for evidence: impossible (no satisfying assignments)")
+else:
+    print(f"MDL penalty for evidence: {penalty}")
 # Apply evidence with MDL penalty
 observed_ranking = list(observe_e(penalty, pred, ranking))
 
-print(f"MDL penalty for evidence: {penalty}")
 print("Observed ranking (MDL penalty):")
 for v, r in observed_ranking:
     print(f"  {v}: rank {r}")

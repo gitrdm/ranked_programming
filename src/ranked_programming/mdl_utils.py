@@ -41,6 +41,8 @@ See the ``examples/boolean_circuit_mdl.py`` file for a full worked example.
 import math
 from typing import Iterable, Tuple, Any, Callable
 
+TERMINATE_RANK = 10**9  # Large integer to represent impossible evidence
+
 def mdl_evidence_penalty(ranking: Iterable[Tuple[Any, int]], pred: Callable[[Any], bool]) -> int:
     """
     Compute the MDL-based evidence penalty for a ranking and predicate.
@@ -50,7 +52,7 @@ def mdl_evidence_penalty(ranking: Iterable[Tuple[Any, int]], pred: Callable[[Any
         pred: Predicate function.
 
     Returns:
-        int: The MDL penalty (ceil(log2(N / M))). Returns float('inf') if M==0 or N==0.
+        int: The MDL penalty (ceil(log2(N / M))). Returns TERMINATE_RANK if M==0 or N==0.
 
     Example::
 
@@ -62,11 +64,11 @@ def mdl_evidence_penalty(ranking: Iterable[Tuple[Any, int]], pred: Callable[[Any
         >>> mdl_evidence_penalty(ranking, lambda x: True)
         0
         >>> mdl_evidence_penalty(ranking, lambda x: False)
-        inf
+        1000000000
     """
     items = list(ranking)
     N = len(items)
     M = sum(1 for v, _ in items if pred(v))
     if M == 0 or N == 0:
-        return float('inf')
+        return TERMINATE_RANK
     return math.ceil(math.log2(N / M))
