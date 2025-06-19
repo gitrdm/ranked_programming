@@ -480,7 +480,9 @@ def rlet(
     """
     Parallel (cartesian product) bindings (lazy, like Scheme's let).
 
-    `rlet` generates all possible combinations of the provided bindings, applies the body function to each, and yields the results with their associated ranks. This is useful for exploring all possible variable assignments in ranked/lazy search spaces.
+    `rlet` generates all possible combinations of the provided bindings, applies the body 
+    function to each, and yields the results with their associated ranks. This is useful for 
+    exploring all possible variable assignments in ranked/lazy search spaces.
 
     Each binding can be a value, a Ranking, or a function of no arguments returning a generator or Ranking. All inputs are normalized automatically.
     Yields (body(values), total_rank) lazily for each combination.
@@ -521,7 +523,9 @@ def rlet_star(
     """
     Sequential dependent bindings (lazy, like Scheme's ``let*``).
 
-    `rlet_star` explores all possible sequences of variable assignments where each variable can depend on the values of those before it, making it useful for modeling dependent choices in ranked/lazy search spaces.
+    `rlet_star` explores all possible sequences of variable assignments where each variable can 
+    depend on the values of those before it, making it useful for modeling dependent choices in 
+    ranked/lazy search spaces.
 
     Each binding can be a value, a Ranking, or a function of previous variables returning a generator or Ranking. All inputs are normalized automatically.
     The body can return a value, a Ranking, or a generator; all are automatically flattened.
