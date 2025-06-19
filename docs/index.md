@@ -44,6 +44,15 @@ This policy ensures that the core examples remain stable and that changes to the
 - Use the new lazy `Ranking` and combinators (no `lazy_` prefix) for all code.
 - All combinators are generator-based and flatten nested values automatically.
 
+## MDL Penalty Estimation Examples
+
+See the following examples for practical usage of MDL-based evidence penalties:
+
+- `examples/boolean_circuit_mdl.py`: Demonstrates MDL penalty calculation for a small boolean circuit, including comparison to a fixed penalty.
+- `examples/mdl_penalty_estimation.py`: Shows five practical approaches to estimating the MDL penalty when the set of possible worlds is too large to enumerate: sampling, analytic counting, bounds, heuristic, and adaptive estimation. Each approach is documented and illustrated in code.
+
+These examples provide guidance for principled, scalable evidence handling in ranked programming models.
+
 ---
 
 (Other sections such as utilities, predicates, and examples can be updated similarly if needed.)
