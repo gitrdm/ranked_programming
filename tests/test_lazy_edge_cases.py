@@ -355,3 +355,24 @@ def test_observe_r_and_e_x():
     result4 = list(observe_e_x(2, lambda x: x < 10, r))
     # No penalty, normalize: (1,0), (2,1), (3,2)
     assert set(result4) == set([(1,0), (2,1), (3,2)])
+
+def test_observe_e_x_with_mdl_penalty():
+    from ranked_programming.ranking_observe import observe_e_x
+    from ranked_programming.mdl_utils import mdl_evidence_penalty, TERMINATE_RANK
+    # Simple ranking: 1 at 0, 2 at 1, 3 at 2, 4 at 3
+    ranking = [(1, 0), (2, 1), (3, 2), (4, 3)]
+    # Predicate matches half
+    pred = lambda x: x % 2 == 0
+    penalty = mdl_evidence_penalty(ranking, pred)
+    result = list(observe_e_x(penalty, pred, ranking))
+    # Should penalize odds by penalty, then normalize
+    min_rank = min(r for _, r in result)
+    assert min_rank == 0
+    # If predicate matches none, penalty is TERMINATE_RANK
+    pred_none = lambda x: False
+    penalty_none = mdl_evidence_penalty(ranking, pred_none)
+    assert penalty_none == TERMINATE_RANK
+    result_none = list(observe_e_x(penalty_none, pred_none, ranking))
+    # All get TERMINATE_RANK, so normalized ranks should match original differences
+    ranks = [r for _, r in result_none]
+    assert ranks == [0, 1, 2, 3], f"Ranks after normalization: {ranks}"

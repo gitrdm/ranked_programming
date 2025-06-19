@@ -52,6 +52,13 @@ See the following examples for practical usage of MDL-based evidence and result 
 - `examples/boolean_circuit_mdl_result.py`: Shows how to use MDL to set the result penalty in `observe_r`, providing a principled, adaptive alternative to fixed penalties.
 - `examples/mdl_penalty_estimation.py`: Shows five practical approaches to estimating the MDL penalty when the set of possible worlds is too large to enumerate: sampling, analytic counting, bounds, heuristic, and adaptive estimation. Each approach is documented and illustrated in code.
 - `examples/boolean_circuit_mdl_e_x.py`: Demonstrates MDL penalty calculation for use as the evidence penalty in `observe_e_x`, including comparison to a fixed penalty.
+- `examples/ranking_network_mdl.py`: MDL-based evidence penalty for a ranking network scenario.
+- `examples/hidden_markov_mdl.py`: MDL-based evidence penalty for a hidden Markov model scenario.
+- `examples/localisation_mdl.py`: MDL-based evidence penalty for a robot localisation scenario.
+- `examples/ranked_procedure_call_mdl.py`: MDL-based evidence penalty for ranked procedure call outputs.
+- `examples/recursion_mdl.py`: MDL-based evidence penalty for recursive search outputs.
+- `examples/spelling_correction_mdl.py`: MDL-based evidence penalty for spelling correction outputs.
+- `examples/ranked_let_mdl.py`: MDL-based evidence penalty for ranked let (independent/dependent uncertainty) outputs.
 
 These examples provide guidance for principled, scalable evidence and result handling in ranked programming models.
 
