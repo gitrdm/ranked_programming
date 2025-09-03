@@ -419,26 +419,26 @@ def test_new_methods_additive():
 ### Phase 2: Educational Examples & Documentation (Weeks 3-4)
 
 #### 2.1 Theory Demonstration Examples
-- [ ] Create `examples/spohn_theory_demo.py`
-- [ ] Implement `demonstrate_negative_ranking()` function
-- [ ] Implement `demonstrate_law_of_disjunction()` function
-- [ ] Implement `demonstrate_conditional_ranks()` function
-- [ ] Add comprehensive comments explaining theory-to-code mapping
+- [x] Create `examples/spohn_theory_demo.py`
+- [x] Implement `demonstrate_negative_ranking()` function
+- [x] Implement `demonstrate_law_of_disjunction()` function
+- [x] Implement `demonstrate_conditional_ranks()` function
+- [x] Add comprehensive comments explaining theory-to-code mapping
 
 #### 2.2 Theory-to-Implementation Mapping
-- [ ] Create `docs/theory_mapping.md`
-- [ ] Document κ function mapping to integer ranks
-- [ ] Document τ function mapping to belief_rank method
-- [ ] Document law of disjunction mapping to nrm_exc
-- [ ] Document conditional ranks mapping to observe_e
-- [ ] Include code examples for each mapping
+- [x] Create `docs/theory_mapping.md`
+- [x] Document κ function mapping to integer ranks
+- [x] Document τ function mapping to belief_rank method
+- [x] Document law of disjunction mapping to nrm_exc
+- [x] Document conditional ranks mapping to observe_e
+- [x] Include code examples for each mapping
 
 #### 2.3 Enhanced Documentation
-- [ ] Update all remaining combinator docstrings with theory references
-- [ ] Create `docs/spohn_theory_guide.md` with comprehensive theory overview
-- [ ] Create `docs/theoretical_foundations.md` with formal mathematical foundations
-- [ ] Update main README with theory section
-- [ ] Add theory-focused tutorials to documentation
+- [x] Update all remaining combinator docstrings with theory references
+- [x] Create `docs/spohn_theory_guide.md` with comprehensive theory overview
+- [x] Create `docs/theoretical_foundations.md` with formal mathematical foundations
+- [x] Update main README with theory section
+- [x] Add theory-focused tutorials to documentation
 
 #### 2.4 Integration Testing
 - [ ] Test theory examples work with existing codebase
