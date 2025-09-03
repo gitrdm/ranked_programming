@@ -15,7 +15,7 @@
 - ✅ All documentation in Sphinx style
 - ✅ Zero technical debt - all tests pass
 
-**Phase 3 Progress:** Causal Reasoning Module Setup Complete (Phase 3.1 ✅, Phase 3.5 ✅)
+**Phase 3 Progress:** Causal Reasoning Core Methods Complete (Phase 3.1 ✅, Phase 3.2 ✅, Phase 3.5 ✅)
 
 ---
 
@@ -460,10 +460,10 @@ def test_new_methods_additive():
 - [x] Add projectivist causal inference foundation
 
 #### 3.2 Core Causal Methods
-- [ ] Implement `is_direct_cause(cause, effect, background_vars)` method
-- [ ] Add τ function calculations for causal analysis
-- [ ] Implement conditional analysis using existing Ranking.filter()
-- [ ] Add causal strength quantification
+- [x] Implement `is_direct_cause(cause, effect, background_vars)` method
+- [x] Add τ function calculations for causal analysis
+- [x] Implement conditional analysis using existing Ranking.filter()
+- [x] Add causal strength quantification
 
 #### 3.3 Causal Discovery Algorithms
 - [ ] Implement basic causal graph discovery from ranking functions

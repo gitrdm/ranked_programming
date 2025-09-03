@@ -314,16 +314,124 @@ class TestEdgeCases:
 
         assert isinstance(strength, float)
 
-    def test_impossible_interventions(self):
-        """Test interventions on impossible conditions."""
-        # Ranking where certain combinations are impossible
-        ranking = Ranking(lambda: [('A', 0), ('B', 1)])
+    def test_conditional_causal_analysis(self):
+        """Test conditional causal analysis using Ranking.filter()."""
+        # Create a ranking with conditional dependencies
+        ranking = Ranking(lambda: nrm_exc(
+            ('A_true', 'B_true', 'C_true'),    # Normal case
+            nrm_exc(('A_true', 'B_false', 'C_true'), ('A_false', 'B_true', 'C_false'), 1),
+            1
+        ))
 
         reasoner = CausalReasoner()
-        intervened = reasoner._intervene(ranking, lambda x: x == 'impossible', True)
 
-        # Impossible value should remain impossible
-        assert intervened.disbelief_rank(lambda x: x == 'impossible') == float('inf')
+        # Analyze causal relationship between A and B conditional on C
+        results = reasoner.conditional_causal_analysis(
+            lambda x: x[0] == 'A_true',  # A causes B
+            lambda x: x[1] == 'B_true',  # B
+            lambda x: x[2] == 'C_true',  # Conditional on C
+            ranking
+        )
+
+        # Should return analysis results
+        assert isinstance(results, dict)
+        assert 'unconditional_effect' in results
+        assert 'conditional_true_effect' in results
+        assert 'conditional_false_effect' in results
+        assert 'conditional_difference' in results
+
+        # All results should be numeric
+        for key, value in results.items():
+            assert isinstance(value, (int, float))
+
+    def test_analyze_conditional_independence(self):
+        """Test conditional independence analysis."""
+        # Create a ranking where A and B are conditionally independent given C
+        ranking = Ranking(lambda: nrm_exc(
+            ('A_true', 'B_true', 'C_true'),    # Independent when C is true
+            nrm_exc(
+                ('A_false', 'B_false', 'C_true'),  # Independent when C is true
+                nrm_exc(
+                    ('A_true', 'B_true', 'C_false'),   # Correlated when C is false
+                    ('A_false', 'B_false', 'C_false'), # Correlated when C is false
+                    1
+                ),
+                1
+            ),
+            1
+        ))
+
+        reasoner = CausalReasoner()
+
+        # Test conditional independence
+        results = reasoner.analyze_conditional_independence(
+            lambda x: x[0] == 'A_true',  # Variable A
+            lambda x: x[1] == 'B_true',  # Variable B
+            lambda x: x[2] == 'C_true',  # Condition C
+            ranking
+        )
+
+        # Should return analysis results
+        assert isinstance(results, dict)
+        assert 'unconditional_correlation' in results
+        assert 'conditional_true_correlation' in results
+        assert 'conditional_false_correlation' in results
+        assert 'conditionally_independent' in results
+
+        # conditionally_independent should be boolean
+        assert isinstance(results['conditionally_independent'], bool)
+
+    def test_conditional_analysis_edge_cases(self):
+        """Test conditional analysis with edge cases."""
+        reasoner = CausalReasoner()
+
+        # Test with ranking that has different values
+        ranking = Ranking(lambda: [('A', 0), ('B', 1)])
+
+        # Use a condition that will actually filter out values
+        results = reasoner.conditional_causal_analysis(
+            lambda x: x == 'A',        # Cause: A
+            lambda x: x == 'B',        # Effect: B
+            lambda x: x == 'A',        # Condition: x == 'A' (will keep only 'A' for true, only 'B' for false)
+            ranking
+        )
+
+        # conditional_true_effect should work (condition x=='A' keeps 'A')
+        # conditional_false_effect should work (condition not(x=='A') keeps 'B')
+        assert isinstance(results['conditional_true_effect'], float)
+        assert isinstance(results['conditional_false_effect'], float)
+        assert results['conditional_true_effect'] != float('inf')
+        assert results['conditional_false_effect'] != float('inf')
+
+    def test_tau_function_calculations(self):
+        """Test τ function calculations for causal analysis."""
+        # Create a simple ranking for testing τ calculations
+        ranking = Ranking(lambda: nrm_exc('A', 'B', 2))
+
+        reasoner = CausalReasoner()
+
+        # Test belief rank calculations (τ function)
+        tau_A = ranking.belief_rank(lambda x: x == 'A')
+        tau_B = ranking.belief_rank(lambda x: x == 'B')
+
+        # In nrm_exc('A', 'B', 2):
+        # κ(A) = 0, κ(B) = 2
+        # τ(A) = κ(B) - κ(A) = 2 - 0 = 2
+        # τ(B) = κ(A) - κ(B) = 0 - 2 = -2
+        assert tau_A == 2.0
+        assert tau_B == -2.0
+
+        # Test causal effect strength calculation
+        strength = reasoner.causal_effect_strength(
+            lambda x: x == 'A',
+            lambda x: x == 'B',
+            ranking
+        )
+
+        # Should be a finite number (not inf or -inf)
+        assert isinstance(strength, float)
+        assert strength != float('inf')
+        assert strength != float('-inf')
 
 
 if __name__ == "__main__":

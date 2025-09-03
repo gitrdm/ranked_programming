@@ -245,9 +245,147 @@ class CausalReasoner:
         tau_false = intervened_false.belief_rank(effect_prop)
 
         # Average causal effect
-        causal_effect = (tau_true - baseline_tau) - (tau_false - baseline_tau)
+        # Handle infinite values by using a large finite value
+        from ranked_programming.theory_types import PRACTICAL_INFINITY
+        
+        def safe_value(x):
+            if x == float('inf'):
+                return PRACTICAL_INFINITY
+            elif x == float('-inf'):
+                return -PRACTICAL_INFINITY
+            else:
+                return x
+        
+        tau_true_safe = safe_value(tau_true)
+        tau_false_safe = safe_value(tau_false)
+        baseline_safe = safe_value(baseline_tau)
+        
+        causal_effect = (tau_true_safe - baseline_safe) - (tau_false_safe - baseline_safe)
 
         return causal_effect
+
+    def conditional_causal_analysis(self,
+                                  cause_prop: Proposition,
+                                  effect_prop: Proposition,
+                                  condition_prop: Proposition,
+                                  ranking: Ranking) -> Dict[str, float]:
+        """
+        Perform conditional causal analysis using ranking theory.
+
+        This analyzes the causal relationship between cause and effect conditional
+        on a background condition using the Ranking.filter() method.
+
+        Args:
+            cause_prop: Cause proposition
+            effect_prop: Effect proposition
+            condition_prop: Background condition proposition
+            ranking: Observational ranking
+
+        Returns:
+            Dict[str, float]: Conditional causal analysis results
+        """
+        results = {}
+
+        # Overall causal effect (unconditional)
+        results['unconditional_effect'] = self.causal_effect_strength(
+            cause_prop, effect_prop, ranking
+        )
+
+        # Conditional on background condition being true
+        conditional_true_ranking = ranking.filter(condition_prop)
+        conditional_true_list = list(conditional_true_ranking)
+        if len(conditional_true_list) > 0:  # Check if there are any values
+            # Create a new ranking from the filtered values
+            true_ranking = Ranking(lambda: conditional_true_list)
+            # Check if the ranking has any finite values for the propositions
+            if (true_ranking.disbelief_rank(cause_prop) < float('inf') and 
+                true_ranking.disbelief_rank(effect_prop) < float('inf')):
+                results['conditional_true_effect'] = self.causal_effect_strength(
+                    cause_prop, effect_prop, true_ranking
+                )
+            else:
+                results['conditional_true_effect'] = 0.0
+        else:
+            results['conditional_true_effect'] = 0.0
+
+        # Conditional on background condition being false
+        conditional_false_ranking = ranking.filter(lambda x: not condition_prop(x))
+        conditional_false_list = list(conditional_false_ranking)
+        if len(conditional_false_list) > 0:  # Check if there are any values
+            # Create a new ranking from the filtered values
+            false_ranking = Ranking(lambda: conditional_false_list)
+            # Check if the ranking has any finite values for the propositions
+            if (false_ranking.disbelief_rank(cause_prop) < float('inf') and 
+                false_ranking.disbelief_rank(effect_prop) < float('inf')):
+                results['conditional_false_effect'] = self.causal_effect_strength(
+                    cause_prop, effect_prop, false_ranking
+                )
+            else:
+                results['conditional_false_effect'] = 0.0
+        else:
+            results['conditional_false_effect'] = 0.0
+
+        # Calculate conditional difference
+        results['conditional_difference'] = (
+            results['conditional_true_effect'] - results['conditional_false_effect']
+        )
+
+        return results
+
+    def analyze_conditional_independence(self,
+                                       var1_prop: Proposition,
+                                       var2_prop: Proposition,
+                                       condition_prop: Proposition,
+                                       ranking: Ranking) -> Dict[str, float]:
+        """
+        Analyze conditional independence between two variables given a condition.
+
+        This uses ranking theory to test if two variables are independent conditional
+        on a third variable, which is a key concept in causal inference.
+
+        Args:
+            var1_prop: First variable proposition
+            var2_prop: Second variable proposition
+            condition_prop: Conditioning variable proposition
+            ranking: Observational ranking
+
+        Returns:
+            Dict[str, float]: Conditional independence analysis results
+        """
+        results = {}
+
+        # Unconditional correlation (measured by belief rank difference)
+        unconditional_tau1 = ranking.belief_rank(var1_prop)
+        unconditional_tau2 = ranking.belief_rank(var2_prop)
+        results['unconditional_correlation'] = abs(unconditional_tau1 - unconditional_tau2)
+
+        # Conditional correlation given condition is true
+        conditional_true_ranking = ranking.filter(condition_prop)
+        if len(list(conditional_true_ranking)) > 0:
+            conditional_tau1_true = conditional_true_ranking.belief_rank(var1_prop)
+            conditional_tau2_true = conditional_true_ranking.belief_rank(var2_prop)
+            results['conditional_true_correlation'] = abs(conditional_tau1_true - conditional_tau2_true)
+        else:
+            results['conditional_true_correlation'] = 0.0
+
+        # Conditional correlation given condition is false
+        conditional_false_ranking = ranking.filter(lambda x: not condition_prop(x))
+        if len(list(conditional_false_ranking)) > 0:
+            conditional_tau1_false = conditional_false_ranking.belief_rank(var1_prop)
+            conditional_tau2_false = conditional_false_ranking.belief_rank(var2_prop)
+            results['conditional_false_correlation'] = abs(conditional_tau1_false - conditional_tau2_false)
+        else:
+            results['conditional_false_correlation'] = 0.0
+
+        # Test for conditional independence
+        # If correlation decreases significantly when conditioning, suggests dependence
+        independence_threshold = 0.1
+        results['conditionally_independent'] = (
+            results['conditional_true_correlation'] < independence_threshold and
+            results['conditional_false_correlation'] < independence_threshold
+        )
+
+        return results
 
     def validate_causal_assumptions(self,
                                   causal_graph: Dict[int, Set[int]],
