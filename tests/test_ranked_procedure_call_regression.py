@@ -1,7 +1,7 @@
 import io
 import sys
 import pytest
-from examples import ranked_procedure_call
+from examples.regression import ranked_procedure_call
 
 def test_ranked_procedure_call_regression():
     captured = io.StringIO()

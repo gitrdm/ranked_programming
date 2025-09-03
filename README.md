@@ -84,7 +84,7 @@ See the `python/examples/` directory for full scripts that duplicate the Racket 
 - `localisation.py` — Robot localisation
 - `recursion.py` — Recursion with ranked choices
 - `ranking_network.py` — Simple ranking network
-- `google_10000_english_no_swears.py` — Large vocabulary demo (mocked)
+- `google_10000_english_no_swears.py` — Large vocabulary demo (uses small subset by default; --full flag loads real data)
 
 Run an example:
 ```bash
@@ -148,7 +148,9 @@ This Python library is a port of the original Racket ranked programming library 
 
 ## References
 
+- Rienstra, Tjitze. "Ranked Programming." (Original Racket implementation paper).
 - Spohn, Wolfgang. (2012). *The Laws of Belief: Ranking Theory and Its Philosophical Applications*. Oxford University Press. ISBN-10: 0199697507, ISBN-13: 978-0199697502.
+- For algorithmic details, see the background document: `docs/Background/Ranking Theory Algorithmic Realization_.md` (in this repository), which discusses c-representations, conditionalization, and computational implementations of Ranking Theory.
 
   Marketing blurb:
   Wolfgang Spohn presents the first full account of the dynamic laws of belief, by means of ranking theory. This book is his presentation of ranking theory and its ramifications. He motivates and introduces the basic notion of a ranking function, which recognises degrees of belief and at the same time accounts for belief simpliciter. He provides a measurement theory for ranking functions, accounts for auto-epistemology in ranking-theoretic terms, and explicates the basic notion of a (deductive or non-deductive) reason. The rich philosophical applications of Spohn's theory include: a new account of lawlikeness, an account of ceteris paribus laws, a new perspective on dispositions, a rich and detailed theory of deterministic causation, an understanding of natural modalities as an objectification of epistemic modalities, an account of the experiential basis of belief--and thus a restructuring of the debate on foundationalism and coherentism (and externalism and contextualism)--and, finally, a revival of fundamental a priori principles of reason fathoming the basics of empiricism and the relation between reason and truth, and concluding in a proof of a weak principle of causality. All this is accompanied by thorough comparative discussions, on a general level as well as within each topic, and in particular with respect to probability theory.

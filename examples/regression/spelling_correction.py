@@ -14,7 +14,7 @@ from ranked_programming.rp_core import Ranking, nrm_exc, pr_all
 import os
 
 # Load dictionary from file (as set of tuples of chars)
-dict_path = os.path.join(os.path.dirname(__file__), 'google-10000-english-no-swears.txt')
+dict_path = os.path.join(os.path.dirname(__file__), '..', 'google-10000-english-no-swears.txt')
 with open(dict_path, 'r') as f:
     DICTIONARY = set(tuple(line.strip()) for line in f if line.strip())
 

@@ -1,7 +1,7 @@
 import io
 import sys
 import pytest
-from examples import ranked_let
+from examples.regression import ranked_let
 
 def test_ranked_let_regression():
     captured = io.StringIO()

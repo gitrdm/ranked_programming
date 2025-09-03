@@ -44,16 +44,24 @@ This policy ensures that the core examples remain stable and that changes to the
 - Use the new lazy `Ranking` and combinators (no `lazy_` prefix) for all code.
 - All combinators are generator-based and flatten nested values automatically.
 
+## Evidence Penalty Types
+
+The library provides three principled approaches to calculating evidence penalties for use with observation combinators:
+
+- **MDL-based Penalties** (`mdl_evidence_penalty`): Information-theoretic approach using minimum description length
+- **Adaptive Penalties** (`adaptive_evidence_penalty`): Learning-based approach that adapts to historical performance
+- **Confidence-based Penalties** (`confidence_evidence_penalty`): Statistical approach using confidence intervals
+
 ## MDL Penalty Estimation Examples
 
-See the following examples for practical usage of MDL-based evidence and result penalties:
+See the following examples for practical usage of evidence penalties:
 
-- `examples/boolean_circuit_mdl.py`: Demonstrates MDL penalty calculation for a small boolean circuit, including comparison to a fixed penalty.
+- `examples/boolean_circuit_mdl.py`: Demonstrates MDL penalty calculation for a small boolean circuit, including comparison to fixed and adaptive penalties.
 - `examples/boolean_circuit_mdl_result.py`: Shows how to use MDL to set the result penalty in `observe_r`, providing a principled, adaptive alternative to fixed penalties.
 - `examples/mdl_penalty_estimation.py`: Shows five practical approaches to estimating the MDL penalty when the set of possible worlds is too large to enumerate: sampling, analytic counting, bounds, heuristic, and adaptive estimation. Each approach is documented and illustrated in code.
-- `examples/boolean_circuit_mdl_e_x.py`: Demonstrates MDL penalty calculation for use as the evidence penalty in `observe_e_x`, including comparison to a fixed penalty.
+- `examples/boolean_circuit_mdl_e_x.py`: Demonstrates MDL penalty calculation for use as the evidence penalty in `observe_e_x`, including comparison to fixed and confidence-based penalties.
 - `examples/ranking_network_mdl.py`: MDL-based evidence penalty for a ranking network scenario.
-- `examples/hidden_markov_mdl.py`: MDL-based evidence penalty for a hidden Markov model scenario.
+- `examples/hidden_markov_mdl.py`: Comprehensive comparison of MDL, adaptive, and confidence-based evidence penalties for a hidden Markov model scenario.
 - `examples/localisation_mdl.py`: MDL-based evidence penalty for a robot localisation scenario.
 - `examples/ranked_procedure_call_mdl.py`: MDL-based evidence penalty for ranked procedure call outputs.
 - `examples/recursion_mdl.py`: MDL-based evidence penalty for recursive search outputs.

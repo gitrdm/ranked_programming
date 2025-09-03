@@ -12,6 +12,8 @@ search spaces. These include:
 
 All combinators operate lazily and are compatible with the `Ranking` abstraction.
 
+These combinators implement key concepts from Wolfgang Spohn's Ranking Theory, such as the negative ranking function (κ) for graded disbelief and the law of disjunction for handling choices.
+
 .. note::
 
    **Logging and Debugging:**
@@ -56,6 +58,8 @@ def nrm_exc(
     Accepts any value, iterable, or Ranking for v1 and v2. All inputs are normalized automatically.
     Yields values from v1 at rank 0, then from v2 at rank2, deduplicating by minimal rank for hashable values. Unhashable values are always yielded, even if repeated.
 
+    This combinator implements the core idea of Ranking Theory's negative ranking function (κ), where rank 0 represents no disbelief (normal), and higher ranks represent graded degrees of disbelief or surprise. It supports the law of disjunction by allowing choices between normal (v1) and exceptional (v2) possibilities.
+
     Args:
         v1: The normal value(s) (any type, value or ranking).
         v2: The exceptional value(s) (any type, value or ranking).
@@ -72,6 +76,8 @@ def nrm_exc(
         [("foo", 0), ("bar", 1)]
         >>> list(nrm_exc([1, 2], [3, 4], 2))
         [(1, 0), (2, 0), (3, 2), (4, 2)]
+
+    See also: Ranking Theory (Spohn, 2012) for the philosophical foundations of graded disbelief.
     """
     import types
     if v1 is v2 and not isinstance(v1, (Ranking, types.GeneratorType, list, set, tuple)):

@@ -176,10 +176,22 @@ See the Python docstrings and Sphinx documentation for detailed reference on eac
 - `observe_r(result_strength, pred, k)`: Result-oriented conditionalization.
 - `observe_e_x(evidence_strength, pred, k)`: Evidence-oriented conditionalization.
 - `mdl_evidence_penalty(ranking, pred)`: Compute an MDL-based evidence penalty for use with observation combinators. See ``examples/boolean_circuit_mdl.py``, ``examples/boolean_circuit_mdl_result.py``, and ``examples/boolean_circuit_mdl_e_x.py`` for worked examples using evidence, result, and evidence penalties in `observe_e_x`, respectively.
+- `adaptive_evidence_penalty(ranking, pred, predicate_id, learning_rate)`: Compute an adaptive evidence penalty that learns from historical data, asymptotically approaching optimal values based on empirical frequencies.
+- `confidence_evidence_penalty(ranking, pred, confidence_level)`: Compute evidence penalty based on statistical confidence intervals for the proportion of satisfying values.
 - `cut(rank, k)`: Restrict ranking to values with rank <= `rank`.
 - `limit(count, k)`: Restrict ranking to the `count` lowest-ranked values.
 - `is_rank(x)`, `is_ranking(x)`: Type checking for ranks and rankings.
 
 ---
+
+## Theoretical Foundations
+
+This implementation is based on Wolfgang Spohn's Ranking Theory, which provides a framework for modeling belief and disbelief using integer ranks rather than probabilities. Key concepts include:
+
+- **Negative Ranking Function (κ)**: Measures degrees of disbelief or surprise.
+- **Conditionalization**: Updates rankings based on new evidence, implemented via `observe` functions.
+- **c-Representations**: A tractable subclass for computational efficiency (see background document).
+
+For a detailed discussion, see the background document: `docs/Background/Ranking Theory Algorithmic Realization_.md`.
 
 For more details, see the code docstrings and Sphinx-generated documentation.

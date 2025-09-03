@@ -52,6 +52,14 @@ ranked\_programming.ranking\_utils module
    :undoc-members:
    :show-inheritance:
 
+ranked\_programming.mdl\_utils module
+-------------------------------------
+
+.. automodule:: ranked_programming.mdl_utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

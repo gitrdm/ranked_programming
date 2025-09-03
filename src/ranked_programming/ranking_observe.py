@@ -162,6 +162,8 @@ def observe_r(
 
     Like :func:`observe`, but increases the rank of values failing ``pred`` by ``result_strength``, then normalizes. This is useful for modeling soft constraints or partial evidence.
 
+    This function implements a form of belief revision in Ranking Theory, analogous to conditionalization on evidence. It updates the ranking function by penalizing inconsistent possibilities, aligning with Spohn's dynamic laws of belief change.
+
     Args:
         result_strength: Extra posterior belief strength (rank penalty) for values failing ``pred`` (``int``).
         pred: Predicate to filter values (``Callable[[Any], bool]``).
@@ -176,6 +178,8 @@ def observe_r(
         >>> r = nrm_exc(2, 3, 1)
         >>> list(observe_r(2, lambda x: x % 2 == 0, r))
         [(2, 0), (3, 3)]
+
+    See also: Ranking Theory's conditional ranks and update rules for philosophical background.
     """
     for v, r in _normalize_ranking(
         ((v, r + result_strength) if not pred(v) else (v, r) for v, r in ranking)

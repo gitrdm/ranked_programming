@@ -1,7 +1,7 @@
 import io
 import sys
 import pytest
-from examples import hidden_markov
+from examples.regression import hidden_markov
 
 def test_hidden_markov_regression():
     captured = io.StringIO()
