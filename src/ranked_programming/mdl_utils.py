@@ -48,7 +48,9 @@ import math
 from typing import Iterable, Tuple, Any, Callable
 from collections import defaultdict
 
-TERMINATE_RANK = 10**9  # Large integer to represent impossible evidence
+from ranked_programming.theory_types import PRACTICAL_INFINITY
+
+TERMINATE_RANK = PRACTICAL_INFINITY  # Large integer to represent impossible evidence
 
 # Global history for adaptive penalty
 _penalty_history = defaultdict(lambda: {'successes': 0, 'total': 0, 'penalty': 1})

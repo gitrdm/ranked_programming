@@ -16,16 +16,21 @@ This module formalizes the mathematical types used in Spohn's Ranking Theory:
 **Usage:**
 
     from ranked_programming.theory_types import DisbeliefRank, BeliefRank, Proposition
-    from ranked_programming.theory_types import INFINITE_DISBELIEF, CERTAINTY_RANK
+    from ranked_programming.theory_types import INFINITE_DISBELIEF, PRACTICAL_INFINITY, CERTAINTY_RANK
 
     # Type hints for theory-aware functions
     def disbelief_rank(proposition: Proposition) -> DisbeliefRank:
         # Implementation here
         pass
 
+    # Use appropriate constants for different scenarios
+    theoretical_impossibility = INFINITE_DISBELIEF  # For mathematical infinity
+    practical_penalty = PRACTICAL_INFINITY          # For large but finite penalties
+
 **Constants:**
 
 - ``INFINITE_DISBELIEF``: Represents maximal disbelief (κ(∅) = ∞)
+- ``PRACTICAL_INFINITY``: Large but finite penalty for practical applications (10^9)
 - ``CERTAINTY_RANK``: Represents no disbelief (κ(W) = 0)
 
 See the main API documentation for examples of how these types are used in practice.
@@ -74,6 +79,19 @@ INFINITE_DISBELIEF = float('inf')
 
 This represents the maximal degree of disbelief, corresponding to κ(∅) = ∞
 in Spohn's theory, where ∅ is the empty set of worlds (contradiction).
+
+Use this for theoretical impossibility and mathematical infinity.
+"""
+
+PRACTICAL_INFINITY = 10**9
+"""Constant representing a practically infinite penalty.
+
+This is used for large penalty values in practical applications where
+float('inf') would cause numerical issues. Corresponds to TERMINATE_RANK
+in mdl_utils.py and represents "effectively impossible" scenarios.
+
+Use this for MDL penalties, termination conditions, and other practical
+applications requiring a large but finite penalty value.
 """
 
 CERTAINTY_RANK = 0

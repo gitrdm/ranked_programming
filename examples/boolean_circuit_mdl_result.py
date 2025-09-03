@@ -6,6 +6,7 @@ This example demonstrates how to use the mdl_evidence_penalty utility to set the
 from ranked_programming.ranking_combinators import nrm_exc
 from ranked_programming.ranking_observe import observe_r
 from ranked_programming.mdl_utils import mdl_evidence_penalty
+from ranked_programming.theory_types import PRACTICAL_INFINITY
 
 def circuit_output(inputs):
     # Simple AND circuit for illustration
@@ -21,7 +22,7 @@ pred = lambda x: circuit_output(x) == 1
 
 # Compute MDL penalty for result (using the same utility as for evidence)
 result_penalty = mdl_evidence_penalty(ranking, pred)
-if result_penalty >= 10**9:
+if result_penalty >= PRACTICAL_INFINITY:
     print("MDL penalty for result: impossible (no satisfying assignments)")
 else:
     print(f"MDL penalty for result: {result_penalty}")

@@ -6,6 +6,7 @@ This example demonstrates how to use the mdl_evidence_penalty utility to set the
 from ranked_programming.ranking_combinators import nrm_exc
 from ranked_programming.ranking_observe import observe_e_x
 from ranked_programming.mdl_utils import mdl_evidence_penalty
+from ranked_programming.theory_types import PRACTICAL_INFINITY
 
 def circuit_output(inputs):
     # Simple AND circuit for illustration
@@ -21,7 +22,7 @@ pred = lambda x: circuit_output(x) == 1
 
 # Compute MDL penalty for evidence (using the same utility as for observe_e)
 evidence_strength = mdl_evidence_penalty(ranking, pred)
-if evidence_strength >= 10**9:
+if evidence_strength >= PRACTICAL_INFINITY:
     print("MDL penalty for evidence: impossible (no satisfying assignments)")
 else:
     print(f"MDL penalty for evidence: {evidence_strength}")

@@ -283,7 +283,7 @@ class Ranking(Iterable):
         elif disbelief_not_A == float('inf'):
             return float('inf')   # Strong belief when ∼A is impossible but A is possible
         else:
-            return disbelief_not_A - disbelief_A
+            return float(disbelief_not_A - disbelief_A)
     
     def conditional_disbelief(self, condition: Callable[[Any], bool],
                             consequent: Callable[[Any], bool]) -> float:

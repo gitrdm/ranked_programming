@@ -44,12 +44,12 @@ penalty adjustments.
 The original ranking distribution matters! If a non-preferred result has a very low base rank,
 penalties might not be enough to push it below preferred results with higher base ranks.
 
-**Understanding Large Penalty Values (like 1000000000):**
+**Understanding Large Penalty Values (like PRACTICAL_INFINITY):**
 When you see very large penalty values, it's NOT a bug - it's the correct mathematical response!
 This happens when NO results satisfy your predicate (e.g., asking for even results when all results are odd).
-- **MDL penalty**: Returns 1000000000 when M=0 (no results satisfy predicate)
-- **Adaptive penalty**: Returns 1000000000 when empirical success rate is 0%
-- **Confidence penalty**: Returns 1000000000 when M=0
+- **MDL penalty**: Returns PRACTICAL_INFINITY when M=0 (no results satisfy predicate)
+- **Adaptive penalty**: Returns PRACTICAL_INFINITY when empirical success rate is 0%
+- **Confidence penalty**: Returns PRACTICAL_INFINITY when M=0
 - **Why this makes sense**: Information-theoretically, impossible evidence deserves infinite penalty
 - **Ranking effect**: All results get the same penalty, so relative ordering is preserved
 
@@ -136,7 +136,7 @@ def analyze_procedure_calls_with_penalties():
     print("\n2. PENALTY ANALYSIS FOR RESULT QUALITY:")
     print("Note: Penalties modify existing rankings, they don't replace them!")
     print("      The final ranking depends on BOTH original base rankings AND penalty adjustments.")
-    print("      Watch for large penalty values (1000000000) - this happens when NO results")
+    print("      Watch for large penalty values (PRACTICAL_INFINITY) - this happens when NO results")
     print("      satisfy the predicate, which is the correct mathematical response!")
 
     scenarios = [
@@ -209,7 +209,7 @@ def analyze_procedure_calls_with_penalties():
     print("- Some scenarios show ranking changes (e.g., Scenario 2 with 'penalize large results')")
     print("- MDL penalties often show more variation than adaptive/confidence algorithms")
     print("- Fixed penalties provide consistent but sometimes less nuanced adjustments")
-    print("- Large penalty values (1000000000) indicate NO results satisfy the predicate")
+    print("- Large penalty values (PRACTICAL_INFINITY) indicate NO results satisfy the predicate")
     print("  This is correct behavior, not a bug - represents 'impossible evidence'")
 
 if __name__ == "__main__":
