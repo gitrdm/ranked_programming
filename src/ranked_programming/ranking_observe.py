@@ -101,27 +101,43 @@ def observe_e(
 
     This is the primary combinator for soft conditioning: values failing ``pred`` are not eliminated, but their rank is increased by ``evidence``. All ranks are then normalized so the lowest is 0.
 
+    **Theoretical Foundation (Spohn's Ranking Theory):**
+    
+    This combinator implements **conditional ranking** in Spohn's theory:
+    - κ(A|E) represents disbelief in A given evidence E
+    - When evidence E is observed, ranks are renormalized relative to E
+    - Values satisfying E get their original ranks (relative to E)
+    - Values failing E get penalty evidence added (representing surprise)
+    
+    **Relation to Theory Methods:**
+    - Use `ranking.conditional_disbelief(condition_pred, consequent_pred)` to compute κ(B|A)
+    - The renormalization implements conditional probability-like behavior in ranking terms
+
     Args:
-        evidence: Amount to add to rank if pred fails (``int``).
-        pred: Predicate to filter values (``Callable[[Any], bool]``).
+        evidence: Amount to add to rank if pred fails (``int``). Represents strength of evidence.
+        pred: Predicate defining the condition E (``Callable[[Any], bool]``).
         ranking: Input ranking (Ranking or iterable of (value, rank) pairs).
 
     Yields:
-        Tuple[Any, int]: (value, rank) pairs, normalized.
+        Tuple[Any, int]: (value, rank) pairs, normalized. Represents κ(·|E).
 
     Example::
 
         >>> from ranked_programming.ranking_combinators import nrm_exc
-        >>> r = nrm_exc(2, 3, 1)
-        >>> list(observe_e(2, lambda x: x % 2 == 0, r))
-        [(2, 0), (3, 3)]
+        >>> r = nrm_exc(2, 3, 1)  # κ(2)=0, κ(3)=1
+        >>> list(observe_e(2, lambda x: x % 2 == 0, r))  # Condition: even numbers
+        [(2, 0), (3, 3)]  # κ(2|even)=0, κ(3|even)=3
 
     Edge cases::
 
-        >>> list(observe_e(2, lambda x: False, r))
+        >>> list(observe_e(2, lambda x: False, r))  # Impossible condition
         [(3, 0)]
-        >>> list(observe_e(2, lambda x: True, r))
+        >>> list(observe_e(2, lambda x: True, r))   # Trivial condition
         [(2, 0), (3, 1)]
+
+    See also:
+    - `Ranking.conditional_disbelief()` for computing conditional ranks κ(B|A)
+    - Ranking Theory (Spohn, 2012) for conditional ranking semantics
     """
     for v, r in _normalize_ranking(ranking, pred=pred, evidence=evidence):
         yield (v, r)

@@ -129,9 +129,21 @@ class Ranking(Iterable):
     This class wraps a generator of (value, rank) pairs, allowing for lazy
     combinators and efficient exploration of large or infinite search spaces.
 
+    **Theoretical Foundation (Spohn's Ranking Theory):**
+    
+    Each Ranking represents a **negative ranking function κ: Ω → ℕ ∪ {∞}** where:
+    - κ(ω) = 0 means ω is not disbelieved (certain/normal)
+    - κ(ω) = n > 0 means ω is disbelieved to degree n (surprising/exceptional)  
+    - κ(ω) = ∞ means ω is impossible
+    
+    The class provides methods to compute:
+    - κ(A): `disbelief_rank(lambda ω: proposition(ω))`
+    - τ(A): `belief_rank(lambda ω: proposition(ω))` where τ(A) = κ(∼A) - κ(A)
+    - κ(B|A): `conditional_disbelief(condition_pred, consequent_pred)`
+
     Args:
         generator_fn: Callable[[], Iterable[Tuple[Any, int]]]
-            A function returning an iterable of (value, rank) pairs.
+            A function returning an iterable of (value, rank) pairs representing κ values.
     """
     __slots__ = ("_generator_fn",)
     def __init__(self, generator_fn: Callable[[], Iterable[Tuple[Any, int]]]):
@@ -140,6 +152,7 @@ class Ranking(Iterable):
 
         Args:
             generator_fn: Callable returning an iterable of (value, rank) pairs.
+                         Each pair (ω, n) represents κ(ω) = n in Spohn's theory.
         """
         self._generator_fn = generator_fn
     @classmethod
@@ -206,6 +219,109 @@ class Ranking(Iterable):
                 if pred(v):
                     yield (v, r)
         return Ranking(filtered)
+    def disbelief_rank(self, proposition: Callable[[Any], bool]) -> float:
+        """
+        κ(A): Compute disbelief rank for proposition A.
+        
+        This is the negative ranking function from Spohn's theory.
+        Returns the minimum rank of worlds satisfying the proposition.
+        
+        **Theoretical Foundation:**
+        κ: W → ℕ∪{∞} where W is the set of possible worlds.
+        κ(A) represents the degree of disbelief in proposition A.
+        
+        Args:
+            proposition: Predicate defining the proposition A.
+                        Should return True for worlds where A holds.
+            
+        Returns:
+            int: Disbelief rank κ(A), or ∞ if no worlds satisfy A.
+            
+        Examples:
+            >>> ranking = nrm_exc('healthy', 'sick', 1)
+            >>> ranking.disbelief_rank(lambda x: x == 'healthy')
+            0
+            >>> ranking.disbelief_rank(lambda x: x == 'sick')  
+            1
+        """
+        satisfying_ranks = [rank for value, rank in self if proposition(value)]
+        return min(satisfying_ranks) if satisfying_ranks else float('inf')
+    
+    def belief_rank(self, proposition: Callable[[Any], bool]) -> float:
+        """
+        τ(A): Compute belief rank for proposition A.
+        
+        This is the two-sided ranking function from Spohn's theory:
+        τ(A) = κ(∼A) - κ(A)
+        
+        **Interpretation:**
+        - τ(A) > 0: Belief in A (∼A is more disbelieved than A)
+        - τ(A) < 0: Disbelief in A (A is more disbelieved than ∼A)  
+        - τ(A) = 0: Suspension of judgment (equal disbelief in A and ∼A)
+        
+        Args:
+            proposition: Predicate defining the proposition A.
+            
+        Returns:
+            int: Belief rank τ(A).
+            
+        Examples:
+            >>> ranking = nrm_exc('A', 'B', 1)  # κ(A)=0, κ(B)=1
+            >>> ranking.belief_rank(lambda x: x == 'A')  # τ(A) = κ(B) - κ(A) = 1 - 0 = 1
+            1
+            >>> ranking.belief_rank(lambda x: x == 'B')  # τ(B) = κ(A) - κ(B) = 0 - 1 = -1
+            -1
+        """
+        disbelief_A = self.disbelief_rank(proposition)
+        disbelief_not_A = self.disbelief_rank(lambda x: not proposition(x))
+        
+        # Handle infinity cases to avoid NaN
+        if disbelief_A == float('inf') and disbelief_not_A == float('inf'):
+            return 0.0  # Suspension of judgment when both are impossible
+        elif disbelief_A == float('inf'):
+            return float('-inf')  # Strong disbelief when A is impossible but ∼A is possible
+        elif disbelief_not_A == float('inf'):
+            return float('inf')   # Strong belief when ∼A is impossible but A is possible
+        else:
+            return disbelief_not_A - disbelief_A
+    
+    def conditional_disbelief(self, condition: Callable[[Any], bool],
+                            consequent: Callable[[Any], bool]) -> float:
+        """
+        κ(B|A): Compute conditional disbelief rank.
+        
+        This implements Spohn's conditional ranks: κ(B|A) = κ(A∧B) - κ(A)
+        
+        **Theoretical Foundation:**
+        Conditional disbelief represents how much more (or less) we disbelieve
+        B given that A is true, compared to our disbelief in A alone.
+        
+        Args:
+            condition: Predicate for condition A.
+            consequent: Predicate for consequent B.
+            
+        Returns:
+            float: Conditional disbelief rank κ(B|A), or ∞ if A is impossible.
+            
+        Examples:
+            >>> ranking = nrm_exc(('A', 'B'), ('A', 'not_B'), 1)
+            >>> # κ(A∧B) = 0, κ(A) = 0, so κ(B|A) = 0 - 0 = 0
+            >>> ranking.conditional_disbelief(
+            ...     lambda x: x[0] == 'A',      # A
+            ...     lambda x: x[1] == 'B'       # B
+            ... )
+            0.0
+        """
+        disbelief_A = self.disbelief_rank(condition)
+        if disbelief_A == float('inf'):
+            return float('inf')  # Condition A is impossible
+            
+        # Create ranking conditioned on A using existing observe_e
+        from .ranking_observe import observe_e
+        conditioned_ranking = Ranking(lambda: observe_e(0, condition, self))
+        disbelief_A_and_B = conditioned_ranking.disbelief_rank(consequent)
+        
+        return disbelief_A_and_B - disbelief_A
     def __len__(self) -> int:
         """
         Return the number of (value, rank) pairs in the ranking.

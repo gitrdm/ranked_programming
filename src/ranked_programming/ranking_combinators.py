@@ -58,12 +58,23 @@ def nrm_exc(
     Accepts any value, iterable, or Ranking for v1 and v2. All inputs are normalized automatically.
     Yields values from v1 at rank 0, then from v2 at rank2, deduplicating by minimal rank for hashable values. Unhashable values are always yielded, even if repeated.
 
-    This combinator implements the core idea of Ranking Theory's negative ranking function (κ), where rank 0 represents no disbelief (normal), and higher ranks represent graded degrees of disbelief or surprise. It supports the law of disjunction by allowing choices between normal (v1) and exceptional (v2) possibilities.
+    **Theoretical Foundation (Spohn's Ranking Theory):**
+    
+    This combinator implements the core idea of Ranking Theory's **negative ranking function (κ)**, where:
+    - κ(A) = 0 means A is not disbelieved (normal/certain)
+    - κ(A) = n > 0 means A is disbelieved to degree n (exceptional/surprising)
+    - κ(A) = ∞ means A is impossible
+    
+    It supports the **law of disjunction**: κ(A∪B) = min(κ(A), κ(B)), enabling graded choice between alternatives.
+    
+    **Relation to Theory Methods:**
+    - Use `ranking.disbelief_rank(lambda x: x == value)` to compute κ for specific propositions
+    - Use `ranking.belief_rank(lambda x: x == value)` to compute the two-sided ranking function τ
 
     Args:
-        v1: The normal value(s) (any type, value or ranking).
-        v2: The exceptional value(s) (any type, value or ranking).
-        rank2: The rank (surprise) for v2 (must be int, default 1).
+        v1: The normal value(s) (any type, value or ranking). Represents κ(v1) = 0.
+        v2: The exceptional value(s) (any type, value or ranking). Represents κ(v2) = rank2.
+        rank2: The rank (surprise) for v2 (must be int, default 1). Represents disbelief degree.
 
     Raises:
         TypeError: If rank2 is not an int.
@@ -77,7 +88,10 @@ def nrm_exc(
         >>> list(nrm_exc([1, 2], [3, 4], 2))
         [(1, 0), (2, 0), (3, 2), (4, 2)]
 
-    See also: Ranking Theory (Spohn, 2012) for the philosophical foundations of graded disbelief.
+    See also: 
+    - `Ranking.disbelief_rank()` for computing κ values
+    - `Ranking.belief_rank()` for computing τ values  
+    - Ranking Theory (Spohn, 2012) for philosophical foundations
     """
     import types
     if v1 is v2 and not isinstance(v1, (Ranking, types.GeneratorType, list, set, tuple)):

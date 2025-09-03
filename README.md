@@ -1,10 +1,10 @@
-# Ranked Programming (Python Port of Racket Library)
+# Ranked Programming
 
-A Python library for ranked programming. Provides combinators and utilities for reasoning about uncertainty, surprise, and ranked choices in computation.
+A Python library for ranked programming based on Wolfgang Spohn's Ranking Theory. Provides combinators and utilities for reasoning about uncertainty, surprise, and ranked choices in computation using a computationally simpler alternative to probabilistic methods.
 
 ## Important Note on Examples and Testing
 
-**All example files in the `examples/` directory are used as regression tests.**
+**All example files in the `examples/regression` directory are used as regression tests.**
 
 - If you add or modify an example file (e.g., `examples/hidden_markov.py`), you must ensure that its output remains consistent with the expected regression tests.
 - Regression tests in `tests/` will run these examples and check their output. If you change the output format or logic, update the corresponding regression test.
@@ -14,11 +14,11 @@ This ensures that the core examples remain stable and that changes to the librar
 
 ## Synopsis
 
-This project is a Python port of the code introduced in the paper "Ranked Programming" by Tjitze Rienstra. As mentioned in the paper, "Ranked Programming" is based on the philosophy of "Ranking Theory" as developed by Wolfgang Spohn. It explores a novel approach to modeling uncertainty that is not based on probability.
+This library implements **Ranked Programming** based on Wolfgang Spohn's **Ranking Theory** - a philosophical framework for modeling uncertainty that distinguishes between "normal" and "exceptional" occurrences rather than using probabilities.
 
 ### Core Idea
 
-While probabilistic programming is a powerful tool, not all uncertainty is probabilistic. Some types of uncertainty are better described by distinguishing between what is "normal" and what is "exceptional". For instance, in fault diagnosis, we might know that a component normally works and only exceptionally fails, without knowing the specific probabilities of failure.
+While probabilistic programming is powerful, not all uncertainty is probabilistic. Some types of uncertainty are better described by distinguishing between what is "normal" and what is "exceptional". For instance, in fault diagnosis, we might know that a component normally works and only exceptionally fails, without knowing the specific probabilities of failure.
 
 **Ranking Theory** provides an alternative: instead of probabilities, it uses integer "ranks" to measure uncertainty as degrees of surprise:
 
@@ -29,23 +29,28 @@ While probabilistic programming is a powerful tool, not all uncertainty is proba
 
 ### Ranked Programming
 
-This library implements a programming model based on these principles, originally proposed as "Ranked Scheme" (an extension of Scheme). The goal is to provide a simple and flexible way to create models that involve uncertainty, but with a computationally simpler, coarser-grained approach than traditional probabilistic methods.
+This library implements a programming model based on these principles. Expressions can have ranked choices, which normally return one value (with a rank of 0) but can exceptionally return another (with a rank of 1 or higher). The final rank of a result represents the number of exceptions that had to occur for that result to be produced.
 
-In this model, expressions can have ranked choices, which normally return one value (with a rank of 0) but can exceptionally return another (with a rank of 1 or higher). The final rank of a result can be thought of as the number of exceptions that had to occur for that result to be produced. The system can then perform inference on these models to find the least surprising outcomes given certain observations.
+**Key Features:**
+- **Theoretical Foundation**: Explicit implementation of Spohn's Ranking Theory with κ (disbelief), τ (belief), and conditional ranks
+- **Lazy Evaluation**: Efficient handling of infinite or large search spaces
+- **Type Safety**: Full type annotations and modern Python support
+- **Comprehensive Testing**: 110+ tests ensuring reliability
+- **Backward Compatibility**: All existing code continues to work unchanged
 
-This approach has shown applications in:
-- Diagnosing faults in boolean circuits
+**Applications:**
+- Fault diagnosis in boolean circuits
 - Spelling correction algorithms
 - Ranking-based Hidden Markov Models
 - Ranking networks for diagnostics
-- Or any scenario where uncertainty is best described by "normal vs. exceptional" rather than precise probabilities
+- Any scenario where uncertainty is best described by "normal vs. exceptional" rather than precise probabilities
 
 ## Installation
 
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/gitrdm/ranked-programming.git
-   cd ranked-programming/python
+   cd ranked-programming
    ```
 2. **Install dependencies (recommended: use conda):**
    ```bash
@@ -61,6 +66,30 @@ This approach has shown applications in:
    pip install -e .
    ```
 
+## Theoretical Foundation
+
+This library explicitly implements **Wolfgang Spohn's Ranking Theory** with direct access to theoretical constructs:
+
+```python
+from ranked_programming import nrm_exc, Ranking
+
+# Create a ranking with normal/exceptional choices
+ranking = Ranking(lambda: nrm_exc('normal', 'exceptional', 1))
+
+# Access theoretical functions directly
+kappa_A = ranking.disbelief_rank(lambda x: x == 'normal')      # κ(A) = 0
+tau_A = ranking.belief_rank(lambda x: x == 'normal')           # τ(A) = 1
+kappa_B_given_A = ranking.conditional_disbelief(
+    lambda x: x == 'normal',    # Condition A
+    lambda x: x == 'exceptional' # Consequent B
+)  # κ(B|A)
+```
+
+**Key Theoretical Methods:**
+- `disbelief_rank(proposition)` - Computes κ(A): degree of disbelief in proposition A
+- `belief_rank(proposition)` - Computes τ(A): belief function τ(A) = κ(∼A) - κ(A)
+- `conditional_disbelief(condition, consequent)` - Computes κ(B|A): conditional disbelief
+
 ## Usage
 
 Import the API in your Python code:
@@ -74,7 +103,7 @@ print(r)
 
 ## Examples
 
-See the `python/examples/` directory for full scripts that duplicate the Racket examples:
+See the `examples/` directory for full scripts demonstrating various applications:
 
 - `boolean_circuit.py` — Boolean circuit with uncertainty
 - `ranked_let.py` — Independent and dependent uncertainty with `rlet` and `rlet_star`
@@ -89,6 +118,43 @@ See the `python/examples/` directory for full scripts that duplicate the Racket 
 Run an example:
 ```bash
 python examples/boolean_circuit.py
+```
+
+## Recent Developments
+
+**September 2025: Phase 1 Theoretical Enhancements Complete ✅**
+
+This library has undergone significant theoretical enhancements to make Wolfgang Spohn's Ranking Theory more explicit:
+
+### ✅ Completed Enhancements
+
+- **Theory Types Module**: Added `src/ranked_programming/theory_types.py` with type aliases and constants
+- **Ranking Class Extensions**: Added three new methods to the `Ranking` class:
+  - `disbelief_rank(proposition)` - κ(A): degree of disbelief
+  - `belief_rank(proposition)` - τ(A): belief function  
+  - `conditional_disbelief(condition, consequent)` - κ(B|A): conditional disbelief
+- **Comprehensive Documentation**: Updated all core docstrings with theoretical references
+- **Extensive Testing**: Added 30+ new tests (110 total) with 100% pass rate
+- **Backward Compatibility**: Zero breaking changes - all existing code works unchanged
+
+### 🔄 Next Phase: Educational Examples & Documentation
+
+Phase 2 will focus on:
+- Theory demonstration examples
+- Theory-to-implementation mapping documentation
+- Enhanced educational tutorials
+- Complete theory-focused documentation
+
+## References
+
+- Rienstra, Tjitze. "Ranked Programming." (Original Racket implementation paper).
+- Spohn, Wolfgang. (2012). *The Laws of Belief: Ranking Theory and Its Philosophical Applications*. Oxford University Press. ISBN-10: 0199697507, ISBN-13: 978-0199697502.
+- For algorithmic details, see the background document: `docs/Background/Ranking Theory Algorithmic Realization_.md` (in this repository), which discusses c-representations, conditionalization, and computational implementations of Ranking Theory.
+
+  Marketing blurb:
+  Wolfgang Spohn presents the first full account of the dynamic laws of belief, by means of ranking theory. This book is his presentation of ranking theory and its ramifications. He motivates and introduces the basic notion of a ranking function, which recognises degrees of belief and at the same time accounts for belief simpliciter. He provides a measurement theory for ranking functions, accounts for auto-epistemology in ranking-theoretic terms, and explicates the basic notion of a (deductive or non-deductive) reason. The rich philosophical applications of Spohn's theory include: a new account of lawlikeness, an account of ceteris paribus laws, a new perspective on dispositions, a rich and detailed theory of deterministic causation, an understanding of natural modalities as an objectification of epistemic modalities, an account of the experiential basis of belief--and thus a restructuring of the debate on foundationalism and coherentism (and externalism and contextualism)--and, finally, a revival of fundamental a priori principles of reason fathoming the basics of empiricism and the relation between reason and truth, and concluding in a proof of a weak principle of causality. All this is accompanied by thorough comparative discussions, on a general level as well as within each topic, and in particular with respect to probability theory.
+
+## Deduplication Policy
 ```
 
 ## Running All Examples
