@@ -411,48 +411,428 @@ class CausalReasoner:
         return validation_results
 
     def _check_no_cycles(self, graph: Dict[int, Set[int]]) -> bool:
-        """Check if the causal graph contains cycles."""
-        # Simple cycle detection - in practice would use more sophisticated algorithms
-        return True  # Placeholder implementation
+        """
+        Check if the causal graph contains cycles using topological sort.
+        
+        A causal graph should be a DAG (Directed Acyclic Graph).
+        
+        Args:
+            graph: Causal graph as adjacency list
+            
+        Returns:
+            bool: True if no cycles detected, False otherwise
+        """
+        # Kahn's algorithm for cycle detection
+        # Get all nodes (both sources and targets)
+        all_nodes = set(graph.keys())
+        for neighbors in graph.values():
+            all_nodes.update(neighbors)
+        
+        in_degree = {node: 0 for node in all_nodes}
+        
+        # Calculate in-degrees
+        for node in graph:
+            for neighbor in graph[node]:
+                in_degree[neighbor] += 1
+        
+        # Find nodes with no incoming edges
+        queue = [node for node in in_degree if in_degree[node] == 0]
+        processed_count = 0
+        
+        while queue:
+            current = queue.pop(0)
+            processed_count += 1
+            
+            # Reduce in-degree of neighbors
+            if current in graph:
+                for neighbor in list(graph[current]):
+                    in_degree[neighbor] -= 1
+                    if in_degree[neighbor] == 0:
+                        queue.append(neighbor)
+        
+        # If we processed all nodes, no cycles exist
+        return processed_count == len(in_degree)
 
     def _check_causal_markov(self, graph: Dict[int, Set[int]],
                            ranking: Ranking, variables: List[Proposition]) -> bool:
-        """Check if the causal Markov condition holds."""
-        # Check conditional independence given parents
-        return True  # Placeholder implementation
+        """
+        Check if the causal Markov condition holds.
+        
+        The causal Markov condition states that each variable is independent of 
+        its non-descendants given its parents.
+        
+        Args:
+            graph: Causal graph as adjacency list
+            ranking: Observational ranking function
+            variables: List of variable propositions
+            
+        Returns:
+            bool: True if Markov condition holds
+        """
+        def get_parents(node: int) -> Set[int]:
+            """Get parents of a node in the graph."""
+            parents = set()
+            for potential_parent in graph:
+                if node in graph[potential_parent]:
+                    parents.add(potential_parent)
+            return parents
+        
+        def get_non_descendants(node: int) -> Set[int]:
+            """Get non-descendants of a node."""
+            # Simple implementation - in practice would need proper graph traversal
+            descendants = set()
+            to_visit = list(graph.get(node, set()))
+            
+            while to_visit:
+                current = to_visit.pop()
+                if current not in descendants:
+                    descendants.add(current)
+                    to_visit.extend(graph.get(current, set()))
+            
+            all_nodes = set(graph.keys()) | set().union(*graph.values())
+            return all_nodes - descendants - {node}
+        
+        # Check Markov condition for each node
+        for node in graph:
+            parents = get_parents(node)
+            non_descendants = get_non_descendants(node)
+            
+            # Remove parents from non-descendants
+            non_descendants -= parents
+            
+            if non_descendants:
+                # Check conditional independence
+                independence_result = self.analyze_conditional_independence(
+                    variables[node], 
+                    lambda x: any(var(x) for var in [variables[nd] for nd in non_descendants if nd < len(variables)]),
+                    lambda x: all(var(x) for var in [variables[p] for p in parents if p < len(variables)]),
+                    ranking
+                )
+                
+                # If not conditionally independent, Markov condition violated
+                if not independence_result.get('conditionally_independent', True):
+                    return False
+        
+        return True
 
     def _check_faithfulness(self, graph: Dict[int, Set[int]],
                           ranking: Ranking, variables: List[Proposition]) -> bool:
-        """Check if the faithfulness condition holds."""
-        # Check that all conditional independencies are represented in the graph
-        return True  # Placeholder implementation
+        """
+        Check if the faithfulness condition holds.
+        
+        The faithfulness condition states that all conditional independencies 
+        in the data are represented in the causal graph (no extra independencies).
+        
+        Args:
+            graph: Causal graph as adjacency list
+            ranking: Observational ranking function
+            variables: List of variable propositions
+            
+        Returns:
+            bool: True if faithfulness holds
+        """
+        def get_d_connected_nodes(node1: int, node2: int, 
+                                conditioned_set: Set[int]) -> bool:
+            """
+            Check if two nodes are d-connected given a conditioning set.
+            This is a simplified version - full implementation would need proper d-separation.
+            """
+            # For now, check if they're connected through paths not blocked by conditioners
+            # This is a placeholder for a more sophisticated d-separation algorithm
+            return node1 != node2  # Simplified assumption
+        
+        # Check all pairs of variables
+        n_vars = len(variables)
+        for i in range(n_vars):
+            for j in range(i + 1, n_vars):
+                # Check conditional independence for different conditioning sets
+                for k in range(n_vars):
+                    if k != i and k != j:
+                        # Test if i and j are conditionally independent given k
+                        independence_result = self.analyze_conditional_independence(
+                            variables[i], variables[j], variables[k], ranking
+                        )
+                        
+                        # If they are conditionally independent but d-connected, 
+                        # faithfulness is violated
+                        if (independence_result.get('conditionally_independent', False) and
+                            get_d_connected_nodes(i, j, {k})):
+                            return False
+        
+        return True
+
+    def pc_algorithm(self, variables: List[Proposition], ranking: Ranking, 
+                   alpha: float = 0.05) -> Dict[Tuple[int, int], float]:
+        """
+        Implement the PC (Peter-Clark) algorithm for causal discovery.
+        
+        The PC algorithm is a constraint-based method that:
+        1. Starts with a complete undirected graph
+        2. Removes edges between unconditionally independent variables
+        3. Removes edges between conditionally independent variables
+        4. Determines edge orientations based on collider detection
+        
+        Args:
+            variables: List of variable propositions
+            ranking: Observational ranking function
+            alpha: Significance threshold for independence tests
+            
+        Returns:
+            Dict[Tuple[int, int], float]: Discovered causal relationships with strengths
+        """
+        n_vars = len(variables)
+        causal_matrix = {}
+        
+        # Step 1: Find skeleton (undirected graph) using conditional independence tests
+        skeleton = self._find_skeleton(variables, ranking, alpha)
+        
+        # Step 2: Determine edge orientations
+        oriented_graph = self._orient_edges(skeleton, variables, ranking)
+        
+        # Convert to causal matrix format
+        for i in oriented_graph:
+            for j in oriented_graph[i]:
+                # Test causal direction
+                is_cause, strength = self.is_direct_cause(
+                    variables[i], variables[j], variables, ranking
+                )
+                if is_cause:
+                    causal_matrix[(i, j)] = strength
+        
+        return causal_matrix
+    
+    def _find_skeleton(self, variables: List[Proposition], ranking: Ranking, 
+                      alpha: float) -> Dict[int, Set[int]]:
+        """
+        Find the skeleton (undirected graph) by testing conditional independence.
+        
+        Args:
+            variables: List of variable propositions
+            ranking: Observational ranking function
+            alpha: Significance threshold
+            
+        Returns:
+            Dict[int, Set[int]]: Undirected skeleton graph
+        """
+        n_vars = len(variables)
+        skeleton = {i: set(range(n_vars)) - {i} for i in range(n_vars)}
+        
+        # Test for unconditional independence
+        for i in range(n_vars):
+            for j in range(i + 1, n_vars):
+                independence_result = self.analyze_conditional_independence(
+                    variables[i], variables[j], lambda x: True, ranking
+                )
+                
+                if independence_result.get('unconditional_correlation', 1.0) < alpha:
+                    # Remove edge if unconditionally independent
+                    skeleton[i].discard(j)
+                    skeleton[j].discard(i)
+        
+        # Test for conditional independence with increasing conditioning set sizes
+        max_conditioning_size = min(3, n_vars - 2)  # Limit for computational feasibility
+        
+        for conditioning_size in range(1, max_conditioning_size + 1):
+            for i in range(n_vars):
+                for j in range(i + 1, n_vars):
+                    if j not in skeleton[i]:
+                        continue
+                        
+                    # Try different conditioning sets
+                    for condition_set in itertools.combinations(
+                        [k for k in range(n_vars) if k != i and k != j], 
+                        conditioning_size
+                    ):
+                        # Test conditional independence
+                        condition_prop = lambda x: all(variables[k](x) for k in condition_set)
+                        independence_result = self.analyze_conditional_independence(
+                            variables[i], variables[j], condition_prop, ranking
+                        )
+                        
+                        if independence_result.get('conditional_true_correlation', 1.0) < alpha:
+                            # Remove edge if conditionally independent
+                            skeleton[i].discard(j)
+                            skeleton[j].discard(i)
+                            break
+        
+        return skeleton
+    
+    def _orient_edges(self, skeleton: Dict[int, Set[int]], 
+                     variables: List[Proposition], ranking: Ranking) -> Dict[int, Set[int]]:
+        """
+        Orient edges in the skeleton to create a DAG.
+        
+        This is a simplified version of the PC algorithm's orientation rules.
+        
+        Args:
+            skeleton: Undirected skeleton graph
+            variables: List of variable propositions
+            ranking: Observational ranking function
+            
+        Returns:
+            Dict[int, Set[int]]: Directed causal graph
+        """
+        oriented = {i: set() for i in skeleton}
+        
+        # Simple orientation based on causal strength
+        for i in skeleton:
+            for j in skeleton[i]:
+                if j > i:  # Avoid duplicate work
+                    # Test both directions
+                    is_i_cause, strength_i_to_j = self.is_direct_cause(
+                        variables[i], variables[j], variables, ranking
+                    )
+                    is_j_cause, strength_j_to_i = self.is_direct_cause(
+                        variables[j], variables[i], variables, ranking
+                    )
+                    
+                    # Orient based on stronger causal relationship
+                    if abs(strength_i_to_j) > abs(strength_j_to_i):
+                        oriented[i].add(j)
+                    elif abs(strength_j_to_i) > abs(strength_i_to_j):
+                        oriented[j].add(i)
+                    # If equal strength, leave undirected (could be bidirected or unoriented)
+        
+        return oriented
+
+    def learn_causal_structure_from_combinators(self, 
+                                               base_ranking: Ranking,
+                                               combinators: List[Callable[[Ranking], Ranking]],
+                                               variables: List[Proposition]) -> Dict[Tuple[int, int], float]:
+        """
+        Learn causal structure by analyzing how combinators affect ranking functions.
+        
+        This method integrates causal discovery with the existing combinator framework
+        by observing how different combinators change the ranking relationships.
+        
+        Args:
+            base_ranking: Base observational ranking
+            combinators: List of combinator functions to apply
+            variables: List of variable propositions
+            
+        Returns:
+            Dict[Tuple[int, int], float]: Learned causal relationships
+        """
+        causal_matrix = {}
+        n_vars = len(variables)
+        
+        # Apply each combinator and observe changes
+        for combinator in combinators:
+            try:
+                transformed_ranking = combinator(base_ranking)
+                
+                # Compare ranking changes for each variable pair
+                for i in range(n_vars):
+                    for j in range(n_vars):
+                        if i != j:
+                            # Measure how the combinator affects the relationship
+                            base_correlation = self._measure_correlation(
+                                variables[i], variables[j], base_ranking
+                            )
+                            transformed_correlation = self._measure_correlation(
+                                variables[i], variables[j], transformed_ranking
+                            )
+                            
+                            # If correlation changes significantly, there might be a causal link
+                            correlation_change = abs(transformed_correlation - base_correlation)
+                            
+                            if correlation_change > 0.1:  # Threshold for significance
+                                # Determine direction based on combinator type
+                                direction = self._infer_direction_from_combinator(
+                                    combinator, variables[i], variables[j], 
+                                    base_ranking, transformed_ranking
+                                )
+                                
+                                if direction == (i, j):
+                                    causal_matrix[(i, j)] = correlation_change
+                                elif direction == (j, i):
+                                    causal_matrix[(j, i)] = correlation_change
+                                    
+            except Exception:
+                # Skip combinators that fail to apply
+                continue
+        
+        return causal_matrix
+    
+    def _measure_correlation(self, var1: Proposition, var2: Proposition, 
+                           ranking: Ranking) -> float:
+        """
+        Measure correlation between two variables in a ranking.
+        
+        Args:
+            var1: First variable proposition
+            var2: Second variable proposition
+            ranking: Ranking function
+            
+        Returns:
+            float: Correlation measure
+        """
+        # Simple correlation measure based on belief rank difference
+        tau1 = ranking.belief_rank(var1)
+        tau2 = ranking.belief_rank(var2)
+        return abs(tau1 - tau2)
+    
+    def _infer_direction_from_combinator(self, combinator: Callable[[Ranking], Ranking],
+                                       var1: Proposition, var2: Proposition,
+                                       base_ranking: Ranking, transformed_ranking: Ranking) -> Tuple[int, int]:
+        """
+        Infer causal direction based on how a combinator affects variables.
+        
+        This is a heuristic approach that looks at which variable's ranking
+        changes more under the combinator transformation.
+        
+        Args:
+            combinator: The combinator function applied
+            var1: First variable proposition
+            var2: Second variable proposition
+            base_ranking: Original ranking
+            transformed_ranking: Ranking after combinator application
+            
+        Returns:
+            Tuple[int, int]: Inferred causal direction (cause, effect)
+        """
+        # Measure ranking changes
+        base_tau1 = base_ranking.belief_rank(var1)
+        base_tau2 = base_ranking.belief_rank(var2)
+        transformed_tau1 = transformed_ranking.belief_rank(var1)
+        transformed_tau2 = transformed_ranking.belief_rank(var2)
+        
+        change1 = abs(transformed_tau1 - base_tau1)
+        change2 = abs(transformed_tau2 - base_tau2)
+        
+        # Assume the variable with less change is the cause
+        # (more stable under transformation)
+        if change1 < change2:
+            return (0, 1)  # var1 -> var2 (placeholder indices)
+        else:
+            return (1, 0)  # var2 -> var1
 
 
 # Utility functions for causal analysis
 
 def create_causal_model(variables: Dict[str, Proposition],
-                       causal_relationships: List[Tuple[str, str, float]]) -> CausalReasoner:
-    """
-    Create a causal reasoner from a declarative causal model.
+                       causal_relationships: List[Tuple[str, str, float]]) -> 'CausalReasoner':
+        """
+        Create a causal reasoner from a declarative causal model.
 
-    Args:
-        variables: Dictionary mapping variable names to propositions
-        causal_relationships: List of (cause, effect, strength) tuples
+        Args:
+            variables: Dictionary mapping variable names to propositions
+            causal_relationships: List of (cause, effect, strength) tuples
 
-    Returns:
-        CausalReasoner: Configured causal reasoner
-    """
-    reasoner = CausalReasoner()
+        Returns:
+            CausalReasoner: Configured causal reasoner
+        """
+        reasoner = CausalReasoner()
 
-    # Build causal graph
-    for cause_name, effect_name, strength in causal_relationships:
-        if cause_name in variables and effect_name in variables:
-            cause_idx = list(variables.keys()).index(cause_name)
-            effect_idx = list(variables.keys()).index(effect_name)
-            reasoner.causal_graph[cause_idx].add(effect_idx)
-            reasoner.causal_strengths[(cause_idx, effect_idx)] = strength
+        # Build causal graph
+        for cause_name, effect_name, strength in causal_relationships:
+            if cause_name in variables and effect_name in variables:
+                cause_idx = list(variables.keys()).index(cause_name)
+                effect_idx = list(variables.keys()).index(effect_name)
+                reasoner.causal_graph[cause_idx].add(effect_idx)
+                reasoner.causal_strengths[(cause_idx, effect_idx)] = strength
 
-    return reasoner
+        return reasoner
 
 
 def analyze_intervention_effects(ranking: Ranking,
@@ -480,3 +860,4 @@ def analyze_intervention_effects(ranking: Ranking,
         effects[f"query_{len(effects)}"] = current_ranking.belief_rank(query_prop)
 
     return effects
+

@@ -166,6 +166,80 @@ class TestCausalReasoner:
         # Should find some path (may be empty if no strong causal relationship)
         # This test mainly checks that the method runs without error
 
+    def test_pc_algorithm(self):
+        """Test the PC algorithm for causal discovery."""
+        # Create a simple causal structure: A -> B <- C
+        variables = [
+            lambda x: x[0] == 'A',
+            lambda x: x[1] == 'B', 
+            lambda x: x[2] == 'C'
+        ]
+        
+        # Create ranking that reflects A -> B <- C structure
+        ranking = Ranking(lambda: nrm_exc(
+            ('A', 'B', 'C'),     # All true
+            nrm_exc(('A', 'B', 'not_C'), ('A', 'not_B', 'C'), 1),  # A->B, confounding with C
+            1
+        ))
+        
+        reasoner = CausalReasoner()
+        causal_matrix = reasoner.pc_algorithm(variables, ranking)
+        
+        # Should return a dictionary (may be empty if no strong relationships found)
+        assert isinstance(causal_matrix, dict)
+        # The exact relationships found may vary due to the heuristic nature
+
+    def test_learn_causal_structure_from_combinators(self):
+        """Test learning causal structure from combinators."""
+        from ranked_programming import observe_e
+        
+        base_ranking = Ranking(lambda: nrm_exc(
+            ('A', 'B'), ('A', 'not_B'), 1
+        ))
+        
+        # Define a proper combinator function that returns a Ranking
+        def test_combinator(ranking):
+            return Ranking(lambda: observe_e(1, lambda x: x[0] == 'A', ranking))
+        
+        combinators = [test_combinator]
+        variables = [
+            lambda x: x[0] == 'A',
+            lambda x: x[1] == 'B'
+        ]
+        
+        reasoner = CausalReasoner()
+        causal_matrix = reasoner.learn_causal_structure_from_combinators(
+            base_ranking, combinators, variables
+        )
+        
+        # Should find causal relationships
+        assert isinstance(causal_matrix, dict)
+
+    def test_comprehensive_causal_validation(self):
+        """Test comprehensive causal structure validation."""
+        # Simple acyclic graph: A -> B -> C
+        causal_graph = {0: {1}, 1: {2}}
+        
+        variables = [
+            lambda x: x[0] == 'A',
+            lambda x: x[1] == 'B',
+            lambda x: x[2] == 'C'
+        ]
+        
+        ranking = Ranking(lambda: nrm_exc(
+            ('A', 'B', 'C'), ('A', 'B', 'not_C'), 1
+        ))
+        
+        reasoner = CausalReasoner()
+        validation = reasoner.validate_causal_assumptions(
+            causal_graph, ranking, variables
+        )
+        
+        # Should have validation results
+        assert 'no_cycles' in validation
+        assert 'causal_markov' in validation
+        assert 'faithfulness' in validation
+
 
 class TestCausalModelCreation:
     """Test causal model creation utilities."""

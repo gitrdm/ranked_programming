@@ -1,12 +1,12 @@
 # Ranked Programming
 
-A Python library for ranked programming based on Wolfgang Spohn's Ranking Theory. Provides combinators and utilities for reasoning about uncertainty, surprise, and ranked choices in computation using a computationally simpler alternative to probabilistic methods.
+A Python library for ranked programming based on Wolfgang Spohn's Ranking Theory. Provides combinators and utilities for reasoning about uncertainty, surprise, and ranked choices in computation using a computationally simpler alternative to probabilistic methods. This project started as a port of the Racket code from https://github.com/tjitze/ranked-programming.
 
 ## Important Note on Examples and Testing
 
-**All example files in the `examples/regression` directory are used as regression tests.**
+**All example files in the `examples/regression` directory are ports of the original racket code and are used as regression tests.**
 
-- If you add or modify an example file (e.g., `examples/regression/hidden_markov.py`), you must ensure that its output remains consistent with the expected regression tests.
+- If you add or modify an example/regression file (e.g., `examples/regression/hidden_markov.py`), you must ensure that its output remains consistent with the expected regression tests.
 - Regression tests in `tests/` will run these examples and check their output. If you change the output format or logic, update the corresponding regression test.
 - To add your own examples without affecting tests, use a different filename or directory, or disable regression checks for that file.
 
