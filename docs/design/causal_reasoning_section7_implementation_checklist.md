@@ -12,18 +12,24 @@ Conventions
 - Branch naming: `feature/causal-v2/<phase>-<short>` (e.g., `feature/causal-v2/m0-srm`)
 - Feature flags (env or settings): `CR_USE_SURGERY`, `CR_SOLVER_BACKEND`, `CR_MAX_K`, `CR_Z_REASON`, `CR_EPS_CI`, `CR_TIMEOUT_MS`
 - Extras: `causal[cp-sat]`, `causal[maxsat]`, `causal[asp]`, `causal[z3]`
-- Graph lib: `networkx`
+- Graph lib: `networkx` (optional). SRM uses internal Kahn topo sort; external graph libs may be used later for PC/FCI and orientation.
+
+Progress summary (2025-09-04)
+- M0 implemented: `StructuralRankingModel` with surgery-based `do()`; internal DAG validation + topological order (no external deps).
+- Exports added under `ranked_programming.causal`.
+- Unit tests added in `tests/causal/test_srm.py` (topo, joint ranking, surgery, cycle detection).
+- Full suite passing: 194 tests.
 
 ## M0 — Structural Ranking Model (SRM) + Surgery
 
 Steps
 1) Implement `StructuralRankingModel`
    - Types: Variable(name, domain, parents, mechanism)
-   - Build topological order (networkx) and validate DAG
-   - `to_ranking()`: compose mechanisms via `rlet` to joint Ranking
+   - Build topological order (internal Kahn algorithm) and validate DAG
+   - `to_ranking()`: compose mechanisms via `rlet_star` into a joint Ranking
 2) Implement surgery `do(interventions)`
-   - Override mechanisms for intervened vars (constant ranking)
-   - Ignore parents for intervened vars during composition
+   - Override mechanisms for intervened vars (constant Ranking)
+   - Ignore parents for intervened vars (cut incoming edges) during composition
 3) Keep `_intervene` in legacy API but mark as deprecated in docstrings
 
 Artifacts
@@ -39,6 +45,10 @@ Tests
 DoD
 - SRM produces correct joint Ranking; surgery semantics verified on toy graphs
 - Lint/type pass; tests green
+
+Status: Completed 2025-09-04
+- Code: `src/ranked_programming/causal/srm.py`, `src/ranked_programming/causal/__init__.py`
+- Tests: `tests/causal/test_srm.py` (PASS); full suite 194 PASS
 
 ## M1 — Causation: Stable Reason-Relations + Effects
 

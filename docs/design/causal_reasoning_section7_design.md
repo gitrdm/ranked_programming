@@ -1,6 +1,6 @@
 # Section 7–Compliant Causal Reasoning (Design Doc)
 
-Status: draft for review
+Status: draft for review (M0 implemented)
 
 Owner: ranked_programming maintainers
 
@@ -34,11 +34,22 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
 - Intervention semantics: manipulate variables by breaking incoming influences (surgery), not merely reweighting.
 - Discovery: extract causal structure from stable reason-relations; internal nodes (e.g., l1, l2) must be representable as propositions/variables.
 
+## Current status (2025-09-04)
+
+- Implemented M0 (SRM + surgery):
+  - `StructuralRankingModel` with internal DAG validation and Kahn topological order.
+  - `to_ranking()` composes mechanisms via `rlet_star` to produce a joint Ranking over assignments.
+  - `do(interventions)` performs surgery by overriding mechanisms with constants and clearing parents for intervened variables.
+  - Exports available from `ranked_programming.causal`.
+  - Tests cover topo order, composition, surgery, and cycle detection; full suite passing (194 tests).
+
+Next milestones: M1 (stable reason-relations), M2 (ranked CI + PC skeleton), as outlined below.
+
 ## High-level architecture
 
 - Core module: `srm.py` (Structural Ranking Model)
   - Declarative model of variables, parents, mechanisms (as Ranking combinators).
-  - Generate observational `Ranking` and intervened `Ranking` via composition (`rlet`) and Shenoy BP when needed.
+  - Generate observational `Ranking` and intervened `Ranking` via composition (`rlet_star`) and Shenoy BP when needed.
 - Causation module: `causal_do.py`
   - Stable reason-relations causation test; effect strengths; conditional/screened effects.
 - Discovery module: `ranked_pc.py`
@@ -84,7 +95,7 @@ API usage is intentionally SCM-like but remains rank-native.
 
 ## Intervention semantics (surgery)
 
-- Observational generation: compose variable mechanisms with `rlet` (and `nrm_exc`) into a joint `Ranking`.
+- Observational generation: compose variable mechanisms with `rlet_star` (and `nrm_exc`) into a joint `Ranking`.
 - Surgery: for `do(X=v)`, replace X’s mechanism with a constant `Ranking(lambda: [ (v, 0) ])` (or a trivial `nrm_exc` with 0 penalty) and remove X from parents of its children during composition.
 - Implementation detail: In `to_ranking()`, build the joint generator in topological order of the graph; for intervened variables, ignore parent values when invoking the mechanism. The rest of the graph composes normally.
 - Backward-compatible path: retain legacy filter-style `_intervene` for simple demos; mark as deprecated once surgery is stable.
