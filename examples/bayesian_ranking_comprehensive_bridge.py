@@ -3,6 +3,12 @@
 Bayesian-Ranking Programming Bridge: Comprehensive Analysis
 ==========================================================
 
+This file is not directly related to the Ranked Programming Library in that
+it does not demonstrate any of the library's specific features or functions.
+Instead it is a standalone file that compares bayesian priors with
+ordinal disbelief ranks so that people not familar with Ranked Programming
+can get a better feel for what ranks mean.
+
 This file consolidates the essential code and explanations for bridging
 Bayesian probability theory with ranked programming's ordinal disbelief ranks.
 

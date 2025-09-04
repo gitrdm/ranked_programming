@@ -163,6 +163,34 @@ kappa_B_given_A = ranking.conditional_disbelief(
 - `Shenoy's pointwise addition` - Mathematical foundation for combining rankings
 - `marginalize(variable)` - Extract marginal distributions from networks
 
+## Bayesian-Ranking Bridge
+
+For users familiar with Bayesian probabilities, here's a mapping between Bayesian posterior probabilities and Ranked Programming disbelief ranks (κ). This table shows how different confidence levels correspond to disbelief ranks, assuming a likelihood ratio of 2 per evidence unit (grounded in information theory where 1 bit = LR = 2).
+
+### Probability to Disbelief Rank Mapping
+
+| Bayesian Probability | Disbelief Rank (κ) | Confidence Level |
+|---------------------|-------------------|------------------|
+| 0.99 | 0 | Complete Belief |
+| 0.95 | 1 | Very Strong |
+| 0.90 | 2 | Strong |
+| 0.80 | 3 | Moderate |
+| 0.70 | 4 | Weak |
+| 0.60 | 5 | Very Weak |
+| 0.50 | 6 | Complete Uncertainty |
+| 0.40 | 7 | Weak Disbelief |
+| 0.30 | 8 | Moderate Disbelief |
+| 0.20 | 9 | Strong Disbelief |
+| 0.10 | 10 | Very Strong Disbelief |
+| 0.05 | 11 | Extreme Disbelief |
+| 0.01 | 12 | Complete Disbelief |
+
+**Assumptions:**
+- Uses threshold-based mapping from systematic analysis
+- Likelihood ratio of 2 per evidence unit (information-theoretic grounding)
+- Ordinal arithmetic: κ' = max(0, κ - ε) for evidence accumulation
+- Complete analysis available in `examples/bayesian_ranking_comprehensive_bridge.py`
+
 ## Causal Reasoning
 
 **NEW**: This library now includes a complete causal reasoning toolkit based on ranking theory:
