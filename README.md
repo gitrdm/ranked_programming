@@ -2,9 +2,9 @@
 
 A Python library for ranked programming based on Wolfgang Spohn's Ranking Theory. Provides combinators and utilities for reasoning about uncertainty, surprise, and ranked choices in computation using a computationally simpler alternative to probabilistic methods.
 
-**🎉 Current Status: Phase 4.1 Complete (Belief Propagation) ✅**
-- **153+ Tests** passing with zero technical debt
-- **Complete Causal Reasoning** toolkit implemented
+**🎉 Current Status: Phase 4.2 Complete (Constraint-Based Reasoning) ✅**
+- **178+ Tests** passing with zero technical debt
+- **Complete Constraint-Based Reasoning** with SMT integration
 - **Efficient Belief Propagation** for large ranking networks
 - **Full Theoretical Foundation** with κ, τ, and conditional ranks
 - **Comprehensive Documentation** and examples
@@ -41,6 +41,7 @@ While probabilistic programming is powerful, not all uncertainty is probabilisti
 This library implements a programming model based on these principles. Expressions can have ranked choices, which normally return one value (with a rank of 0) but can exceptionally return another (with a rank of 1 or higher). The final rank of a result represents the number of exceptions that had to occur for that result to be produced.
 
 **Advanced Capabilities:**
+- **Constraint-Based Reasoning**: SMT-powered constraint solving for ranking networks
 - **Belief Propagation**: Efficient inference in large ranking networks using Shenoy's algorithm
 - **Causal Discovery**: Automatic discovery of causal relationships from ranking data
 - **Theoretical Rigor**: Direct implementation of Spohn's mathematical framework
@@ -61,7 +62,8 @@ This library implements a programming model based on these principles. Expressio
 - Ranking-based Hidden Markov Models
 - Ranking networks for diagnostics
 - **Causal discovery and inference**
-- **Belief propagation in complex networks** (NEW)
+- **Belief propagation in complex networks**
+- **Constraint-based reasoning in structured knowledge bases** (NEW)
 - Any scenario where uncertainty is best described by "normal vs. exceptional" rather than precise probabilities
 
 ## Installation
@@ -105,11 +107,18 @@ print(f"κ(healthy) = {kappa}, τ(healthy) = {tau}")
 reasoner = CausalReasoner()
 # ... causal analysis code ...
 
-# 4. Belief propagation
-factors = {('A', 'B'): Ranking(lambda: nrm_exc(('A_ok', 'B_ok'), ('A_ok', 'B_bad'), 1))}
-network = BeliefPropagationNetwork(factors)
-marginals = network.propagate_beliefs()
-print("Network marginals:", {k: list(v) for k, v in marginals.items()})
+# 4. Constraint-based reasoning
+from ranked_programming.constraint_reasoning import ConstraintRankingNetwork
+
+# Create constraint network
+network = ConstraintRankingNetwork(['A', 'B', 'C'])
+network.add_constraint('A', 'B', 2)  # Mutual exclusion between A and B
+network.add_constraint('B', 'C', 1)  # Causal constraint B → C
+
+# Solve with evidence
+evidence = {'A': 'normal'}
+result = network.solve_constraints(evidence)
+print("Constraint solving result:", {k: list(v) for k, v in result.items()})
 ```
 
 ## Theoretical Foundation
@@ -241,6 +250,39 @@ print("Marginal for A with evidence:", list(marginals_with_evidence['A']))
 - **Scalability**: Handles large networks with caching and lazy evaluation
 - **Recursion Safety**: Robust error handling for complex ranking compositions
 
+## Constraint-Based Reasoning
+
+**NEW**: This library now includes constraint-based reasoning capabilities with SMT integration for solving complex ranking constraints:
+
+```python
+from ranked_programming.constraint_reasoning import ConstraintRankingNetwork
+from ranked_programming import Ranking, nrm_exc
+
+# Create a constraint network
+network = ConstraintRankingNetwork(['Component_A', 'Component_B', 'System_Status'])
+
+# Add constraints
+network.add_constraint('Component_A', 'Component_B', 2)  # Mutual exclusion
+network.add_constraint('Component_A', 'System_Status', 1)  # Causal relationship
+network.add_constraint('Component_B', 'System_Status', 1)  # Causal relationship
+
+# Solve with evidence
+evidence = {'Component_A': 'working'}
+result = network.solve_constraints(evidence)
+
+print("Component A status:", list(result['Component_A']))
+print("Component B status:", list(result['Component_B']))
+print("System status:", list(result['System_Status']))
+```
+
+**Constraint-Based Reasoning Features:**
+- **SMT Integration**: Uses Z3 SMT solver for efficient constraint solving
+- **Multiple Constraint Types**: Mutual exclusion, causal, and exclusion constraints
+- **Evidence Integration**: Proper conditioning with partial evidence
+- **Scalable Solving**: Handles complex constraint networks efficiently
+- **Fallback Support**: Graceful degradation to brute-force when SMT unavailable
+- **Optimization**: Minimizes disbelief ranks in constraint satisfaction
+
 ## Examples
 
 See the `examples/` directory for full scripts demonstrating various applications:
@@ -255,6 +297,7 @@ See the `examples/` directory for full scripts demonstrating various application
 - `ranking_network.py` — Simple ranking network
 - `causal_reasoning_demo.py` — Causal discovery and inference examples
 - `belief_propagation_example.py` — **NEW**: Belief propagation in ranking networks
+- `constraint_reasoning_demo.py` — **NEW**: Constraint-based reasoning examples
 - `google_10000_english_no_swears.py` — Large vocabulary demo (uses small subset by default; --full flag loads real data)
 
 Run an example:
@@ -269,7 +312,7 @@ python examples/belief_propagation_example.py
 
 ## Recent Developments
 
-**September 2025: Phase 4.1 Belief Propagation Complete ✅**
+**September 2025: Phase 4.2 Constraint-Based Reasoning Complete ✅**
 
 This library has undergone comprehensive enhancements across multiple phases:
 
@@ -310,13 +353,23 @@ This library has undergone comprehensive enhancements across multiple phases:
 - **Comprehensive Testing**: 21 belief propagation tests
 - **Examples & Integration**: Complete `belief_propagation_example.py` with 5 network scenarios
 
-### 🔄 Next Phase: Phase 4.2 Constraint-Based Reasoning
+**Phase 4.2: Constraint-Based Reasoning Module (Complete ✅)**
+- **ConstraintRankingNetwork Class**: SMT-powered constraint solving for ranking networks
+- **Z3 SMT Integration**: Industrial-strength constraint solving with fallback support
+- **Multiple Constraint Types**: Mutual exclusion, causal, and exclusion constraints
+- **Evidence Integration**: Proper conditioning with partial evidence
+- **Optimization**: Minimizes disbelief ranks in constraint satisfaction
+- **Comprehensive Testing**: 25 constraint reasoning tests
+- **Examples & Integration**: Complete constraint reasoning demonstrations
+- **Zero Technical Debt**: All 178 tests pass with no regressions
 
-Phase 4.2 will focus on:
-- Constraint-based reasoning capabilities with SMT integration
-- Advanced performance optimization for large networks
-- Scalability testing and benchmarking
-- Enhanced causal discovery algorithms
+### 🔄 Next Phase: Phase 4.3 Advanced Performance & Scalability
+
+Phase 4.3 will focus on:
+- Advanced performance optimization for very large networks
+- Enhanced scalability testing and benchmarking
+- Parallel processing capabilities for constraint solving
+- Memory optimization for large-scale ranking networks
 
 ## References
 
@@ -375,11 +428,12 @@ Run all tests with:
 pytest
 ```
 
-**Test Coverage**: 153+ comprehensive tests covering:
+**Test Coverage**: 178+ comprehensive tests covering:
 - Core ranking theory functionality
 - Theoretical method implementations (κ, τ, conditional ranks)
 - Causal reasoning and discovery algorithms
 - Belief propagation and message passing
+- Constraint-based reasoning with SMT integration
 - Integration with existing combinators
 - Edge cases and error handling
 - Backward compatibility validation

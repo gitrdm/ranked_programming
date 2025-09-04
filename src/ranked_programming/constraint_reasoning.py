@@ -24,6 +24,13 @@ from collections import defaultdict
 import logging
 import itertools
 
+try:
+    import z3
+    Z3_AVAILABLE = True
+except ImportError:
+    Z3_AVAILABLE = False
+    z3 = None
+
 from ranked_programming import Ranking, nrm_exc, observe_e
 from ranked_programming.theory_types import Proposition, DisbeliefRank
 
@@ -190,11 +197,152 @@ class ConstraintRankingNetwork:
 
     def _solve_with_smt_approach(self, evidence: Dict[str, Any]) -> Dict[str, Ranking]:
         """
-        Solve constraints using SMT-inspired approach.
+        Solve constraints using Z3 SMT solver.
 
-        This method uses combinatorial optimization to find rankings that satisfy
-        all constraints while minimizing disbelief ranks.
+        This method uses Z3 to efficiently solve ranking constraints by encoding
+        them as SMT formulas and finding optimal solutions.
         """
+        if not Z3_AVAILABLE:
+            logger.warning("Z3 not available, falling back to brute force")
+            return self._solve_brute_force(evidence)
+
+        # Generate all possible value assignments for unassigned variables
+        unassigned_vars = [v for v in self.variables if v not in evidence]
+        if not unassigned_vars:
+            # All variables assigned, just validate
+            if self._validate_constraints(evidence):
+                return self._create_rankings_from_evidence(evidence)
+            else:
+                return {}
+
+        try:
+            # Use Z3 SMT solver
+            return self._solve_with_z3(evidence, unassigned_vars)
+        except Exception as e:
+            logger.warning(f"Z3 solving failed: {e}, falling back to brute force")
+            return self._solve_brute_force(evidence)
+
+    def _solve_with_z3(self, evidence: Dict[str, Any], unassigned_vars: List[str]) -> Dict[str, Ranking]:
+        """Solve constraints using Z3 SMT solver."""
+        # Create Z3 solver
+        solver = z3.Optimize()
+
+        # Create Z3 variables for unassigned variables
+        z3_vars = {}
+        value_options = {}
+
+        for var in unassigned_vars:
+            possible_values = self._generate_possible_values(var)
+            value_options[var] = possible_values
+
+            # Create Z3 integer variable to represent the choice index
+            z3_vars[var] = z3.Int(f"{var}_choice")
+            # Constrain the choice to valid indices
+            solver.add(z3.And(z3_vars[var] >= 0, z3_vars[var] < len(possible_values)))
+
+        # Add constraint encodings
+        for var1, var2, constraint_type in self.constraints:
+            if constraint_type == 2:  # Mutual exclusion
+                self._add_mutual_exclusion_constraint_z3(solver, var1, var2, z3_vars, value_options, evidence)
+
+        # Create optimization objective (maximize score)
+        score_terms = []
+        for var in self.variables:
+            if var in evidence:
+                # Fixed evidence variables
+                score_terms.append(self._get_value_score(evidence[var]))
+            else:
+                # Variable choice - create score based on selected value
+                possible_values = value_options[var]
+                var_score = z3.Int(f"{var}_score")
+
+                # Add constraints for score calculation
+                score_cases = []
+                for i, value in enumerate(possible_values):
+                    score_cases.append(z3.And(z3_vars[var] == i, var_score == self._get_value_score(value)))
+
+                solver.add(z3.Or(*score_cases))
+                score_terms.append(var_score)
+
+        # Add penalty for constraint violations
+        violation_penalty = z3.Int("violation_penalty")
+        solver.add(violation_penalty == 0)  # For now, assume no violations in optimal solution
+
+        total_score = sum(score_terms) + violation_penalty
+        solver.maximize(total_score)
+
+        # Solve
+        if solver.check() == z3.sat:
+            model = solver.model()
+
+            # Extract solution
+            solution = evidence.copy()
+            for var in unassigned_vars:
+                choice_idx = model[z3_vars[var]].as_long()
+                solution[var] = value_options[var][choice_idx]
+
+            return self._create_rankings_from_evidence(solution)
+        else:
+            logger.warning("Z3 found no solution")
+            return {}
+
+    def _add_mutual_exclusion_constraint_z3(self, solver, var1: str, var2: str,
+                                          z3_vars: Dict[str, z3.ArithRef],
+                                          value_options: Dict[str, List[str]],
+                                          evidence: Dict[str, Any]):
+        """Add mutual exclusion constraint to Z3 solver."""
+        # Get values for both variables
+        if var1 in evidence:
+            val1_options = [evidence[var1]]
+        else:
+            val1_options = value_options[var1]
+
+        if var2 in evidence:
+            val2_options = [evidence[var2]]
+        else:
+            val2_options = value_options[var2]
+
+        # For mutual exclusion, ensure that if both variables have values,
+        # they don't represent the same state
+        if var1 in evidence and var2 in evidence:
+            # Both fixed - check if they conflict
+            if self._values_conflict_for_mutual_exclusion(evidence[var1], evidence[var2]):
+                # This is a conflict - should not happen if validation passed
+                pass
+        elif var1 in evidence:
+            # var1 fixed, var2 variable - ensure var2 doesn't conflict with var1
+            val1 = evidence[var1]
+            for i, val2 in enumerate(val2_options):
+                if self._values_conflict_for_mutual_exclusion(val1, val2):
+                    # This choice conflicts - add constraint to avoid it
+                    solver.add(z3_vars[var2] != i)
+        elif var2 in evidence:
+            # var2 fixed, var1 variable - ensure var1 doesn't conflict with var2
+            val2 = evidence[var2]
+            for i, val1 in enumerate(val1_options):
+                if self._values_conflict_for_mutual_exclusion(val1, val2):
+                    # This choice conflicts - add constraint to avoid it
+                    solver.add(z3_vars[var1] != i)
+        else:
+            # Both variable - ensure their combination doesn't conflict
+            for i, val1 in enumerate(val1_options):
+                for j, val2 in enumerate(val2_options):
+                    if self._values_conflict_for_mutual_exclusion(val1, val2):
+                        # This combination conflicts - add constraint to avoid it
+                        solver.add(z3.Or(z3_vars[var1] != i, z3_vars[var2] != j))
+
+    def _get_value_score(self, value: str) -> int:
+        """Get score for a value (higher is better)."""
+        val_str = str(value).lower()
+        if any(word in val_str for word in ['normal', 'healthy', 'working', 'true']):
+            return 1  # Good values
+        elif any(word in val_str for word in ['abnormal', 'faulty', 'broken', 'false']):
+            return -1  # Bad values
+        else:
+            return 0  # Neutral values
+
+    def _solve_brute_force(self, evidence: Dict[str, Any]) -> Dict[str, Ranking]:
+        """Fallback brute force solver when Z3 is not available."""
         # Generate all possible value assignments for unassigned variables
         unassigned_vars = [v for v in self.variables if v not in evidence]
         if not unassigned_vars:

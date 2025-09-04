@@ -9,6 +9,9 @@ description = "Python port of the Racket ranked programming library"
 authors = [{name = "gitrdm", email = "your@email.com"}]
 readme = "README.md"
 requires-python = ">=3.8"
+dependencies = [
+    "z3-solver>=4.8.0"
+]
 
 [project.optional-dependencies]
 dev = ["pytest"]
