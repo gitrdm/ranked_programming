@@ -1,10 +1,18 @@
 # Section 7–Compliant Causal Reasoning (Design Doc)
+Follow-up on docs/Background/Ranking Theory Algorithmic Realization_.md
 
 Status: draft for review (M0–M5 implemented)
 
 Owner: ranked_programming maintainers
 
 Date: 2025-09-04
+
+> Status (quick links)
+>
+> - SRM demo: `examples/causal_boolean_circuit_srm.py` (causes/effects, CI/PC, Meek R1/R2, minimal repairs, root-cause DOT, optional CP-SAT)
+> - Identification demo: `examples/causal_srm_identification_demo.py`
+> - Discovery implementation: `src/ranked_programming/causal/ranked_pc.py` (ranked CI, PC skeleton, v-structures, Meek R1/R2, `z_filter`)
+> - Tests: discovery `tests/causal/test_ranked_pc.py`, causation `tests/causal/test_causation_v2.py`, SRM `tests/causal/test_srm.py`, identification `tests/causal/test_identification.py`, explanations `tests/causal/test_explanations.py`, constraints/CP-SAT `tests/causal/test_constraints.py`, `tests/causal/test_constraints_ortools.py`
 
 ## Motivation
 
@@ -52,10 +60,13 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
   - Ranked CI predicate with symmetric τ checks under hard conditioning.
   - PC skeleton discovery using CI up to k, storing separating sets, and v-structure orientation.
   - Tests cover chain, fork, collider using noisy link mechanisms to ensure faithfulness.
+  - Orientation improvements: Meek rules R1 and R2 implemented (iterative propagation); R3/R4 pending.
+  - Candidate filtering: optional `z_filter` hook to prune conditioning candidates before CI tests (e.g., restrict to common neighbors or domain-pruned sets).
 
 - Implemented M3 baseline (explanations):
   - Minimal repair sets via exact enumeration baseline; SRM surgery to verify fixes.
   - Root-cause chains traced along SRM DAG.
+  - DOT export of root-cause graphs available in `examples/causal_boolean_circuit_srm.py`.
   - Tests cover chain graph minimal repairs and path narration.
 
 - Implemented M4 (identification):
@@ -71,6 +82,14 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
   - Tests added; CP-SAT tests skipped by default and enabled via `ORTOOLS_AVAILABLE=1`.
 
 - Test suite passing: 211 tests (CP-SAT enabled); baseline without OR-Tools: 209 passed, 2 skipped.
+
+## Remaining gaps (as of 2025-09-04)
+
+- Discovery orientation: Meek R3/R4 not yet implemented; FCI/PAG for latent confounding not available.
+- c-representations and skeptical c-inference via SMT (Z3): not implemented.
+- Constraint networks/safe covers for c-inference: not implemented.
+- Hild–Spohn rank measurement and IC axioms (IC1–IC6): not implemented.
+- Learning/prior elicitation and robustness/transfer tooling: not implemented.
 
 ## High-level architecture
 

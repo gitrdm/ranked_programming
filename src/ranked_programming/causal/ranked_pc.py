@@ -21,8 +21,11 @@ The PC algorithm starts with a complete undirected graph and removes an edge Xâ€
 if CI(X, Y | S) holds for some S subset of adjacents(X)\\{Y} of size k, iterating k
 from 0 up to k_max. Separating sets are recorded for potential orientation.
 
-Orientation is limited here to v-structures (X -> Z <- Y) based on separating sets.
-Additional Meek rules can be added later.
+Orientation starts with v-structures (X -> Z <- Y) based on separating sets.
+Then a subset of Meek rules is applied iteratively to further orient edges
+without introducing new v-structures or cycles. Specifically we use:
+    - R1-like: if a -> b and b - c and a and c are nonadjacent, orient b - c as b -> c
+    - R2-like (propagation): if a -> b and b -> c and a - c, orient a - c as a -> c
 """
 from __future__ import annotations
 
@@ -139,6 +142,7 @@ def pc_skeleton(
     k_max: int = 2,
     epsilon: float = 0.0,
     max_contexts: int = 128,
+    z_filter: Optional[Callable[[str, str, Sequence[str]], Sequence[str]]] = None,
 ) -> PCResult:
     """Discover PC skeleton using ranked CI.
 
@@ -154,6 +158,20 @@ def pc_skeleton(
         CI tolerance (default 0.0).
     max_contexts : int, optional
         Context limit per CI test.
+
+    Parameters (keyword-only)
+    -------------------------
+    k_max : int, optional
+        Maximum conditioning set size (default 2).
+    epsilon : float, optional
+        CI tolerance (default 0.0).
+    max_contexts : int, optional
+        Context limit per CI test.
+    z_filter : Optional[Callable[[str, str, Sequence[str]], Sequence[str]]]
+        Optional filter applied to adjacency lists before generating
+        conditioning sets S. Signature: f(a, b, neighbors_of_a_minus_b) -> filtered
+        For example, use a filter that returns only common neighbors or prunes
+        by domain knowledge. Defaults to None (use all current neighbors).
 
     Returns
     -------
@@ -180,7 +198,11 @@ def pc_skeleton(
         for a, b in list(edges):
             # Consider separating sets from neighbors of a (excluding b), then b (excluding a)
             adja = list(neighbors(a) - {b})
+            if z_filter:
+                adja = list(z_filter(a, b, adja))
             adjb = list(neighbors(b) - {a})
+            if z_filter:
+                adjb = list(z_filter(b, a, adjb))
             if len(adja) >= k:
                 for S in combinations(adja, k):
                     if ranked_ci(a, b, list(S), srm, epsilon=epsilon, max_contexts=max_contexts):
@@ -217,5 +239,64 @@ def pc_skeleton(
                 if z not in sep:
                     oriented.add((a, z))
                     oriented.add((b, z))
+                    # remove undirected pair if present; it is now oriented
+                    key_az = (a, z) if a < z else (z, a)
+                    key_bz = (b, z) if b < z else (z, b)
+                    if key_az in edges:
+                        edges.discard(key_az)
+                    if key_bz in edges:
+                        edges.discard(key_bz)
+
+    # Apply Meek rules iteratively
+    def any_adjacent(u: str, v: str) -> bool:
+        key = (u, v) if u < v else (v, u)
+        if key in edges:
+            return True
+        return (u, v) in oriented or (v, u) in oriented
+
+    changed = True
+    while changed:
+        changed = False
+
+        # R1-like: a -> b and b - c (undirected) and not adjacent(a, c) => b -> c
+        undirected_pairs = list(edges)
+        for u, v in undirected_pairs:
+            # consider both orderings for b - c
+            for (a, b, c) in ((u, u, v), (v, v, u)):
+                # a is placeholder; we will search any a' such that a' -> b
+                pass
+        # Iterate all oriented a' -> b and check neighbors b - c
+        for a, b in list(oriented):
+            # for each undirected neighbor c of b
+            for c in list(neighbors(b)):
+                key_bc = (b, c) if b < c else (c, b)
+                if key_bc not in edges:
+                    continue
+                if not any_adjacent(a, c):
+                    # orient b - c as b -> c
+                    oriented.add((b, c))
+                    edges.discard(key_bc)
+                    changed = True
+
+        # R2-like (propagation): a -> b and b -> c and a - c => a -> c
+        undirected_pairs = list(edges)
+        for u, v in undirected_pairs:
+            # if there exists b with u -> b and b -> v, orient u - v as u -> v
+            # and symmetric for v -> u with a b
+            # First direction u -> v
+            found_chain = any((u, b) in oriented and (b, v) in oriented for b in nodes)
+            if found_chain:
+                key_uv = (u, v)
+                edges.discard(key_uv)
+                oriented.add((u, v))
+                changed = True
+                continue
+            # Second direction v -> u
+            found_chain_rev = any((v, b) in oriented and (b, u) in oriented for b in nodes)
+            if found_chain_rev:
+                key_uv = (u, v)
+                edges.discard(key_uv)
+                oriented.add((v, u))
+                changed = True
 
     return PCResult(nodes, edges, sepsets, oriented)

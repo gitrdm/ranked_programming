@@ -168,6 +168,20 @@ class StructuralRankingModel:
                     return lambda a0, a1, a2, a3: binding_fn(a0, a1, a2, a3)
                 elif arity == 5:
                     return lambda a0, a1, a2, a3, a4: binding_fn(a0, a1, a2, a3, a4)
+                elif arity == 6:
+                    return lambda a0, a1, a2, a3, a4, a5: binding_fn(a0, a1, a2, a3, a4, a5)
+                elif arity == 7:
+                    return lambda a0, a1, a2, a3, a4, a5, a6: binding_fn(a0, a1, a2, a3, a4, a5, a6)
+                elif arity == 8:
+                    return lambda a0, a1, a2, a3, a4, a5, a6, a7: binding_fn(a0, a1, a2, a3, a4, a5, a6, a7)
+                elif arity == 9:
+                    return lambda a0, a1, a2, a3, a4, a5, a6, a7, a8: binding_fn(a0, a1, a2, a3, a4, a5, a6, a7, a8)
+                elif arity == 10:
+                    return lambda a0, a1, a2, a3, a4, a5, a6, a7, a8, a9: binding_fn(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+                elif arity == 11:
+                    return lambda a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10: binding_fn(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+                elif arity == 12:
+                    return lambda a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11: binding_fn(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
                 else:
                     # Fallback: accept many args; as_ranking will pass only a prefix equal to parameter count.
                     # For large models, we can extend explicit cases as needed.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Causal analysis of a small boolean circuit using production APIs.
+Causal analysis of a small boolean circuit using the legacy production APIs.
 
 What this shows
 - How to build a ranked model of a simple circuit with independent faults.
@@ -26,7 +26,9 @@ How to interpret outputs
 - PC discovery lists directed relationships between propositions; for this example
     we include both faults and derived internal wires (l1, l2) to visualize flow.
 
-Production dependencies used (no changes made)
+Note: A newer SRM-based demo that uses the Section 7 causal framework (SRM, surgery-based do, ranked CI/PC, explanations) is available as `causal_boolean_circuit_srm.py`. Prefer that demo for the latest APIs under `ranked_programming.causal`.
+
+Production dependencies used here (legacy)
 - ranked_programming.Ranking, nrm_exc, rlet
 - ranked_programming.causal_reasoning.CausalReasoner
 
