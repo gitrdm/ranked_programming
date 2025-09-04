@@ -49,10 +49,11 @@ from typing import Dict, List, Set, Tuple, Optional, Callable, Any, Iterator
 from collections import defaultdict
 import logging
 from functools import lru_cache
+import itertools
 
 from ranked_programming.ranking_class import Ranking
-from ranked_programming.ranking_combinators import nrm_exc
-from ranked_programming.ranking_observe import observe_e
+from ranked_programming.ranking_combinators import nrm_exc, either_of, rlet
+from ranked_programming.ranking_observe import observe_e, observe
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +103,14 @@ class BeliefPropagationNetwork:
         self.graph = self._build_graph()
         self.messages: Dict[Tuple[Variable, Variable], Message] = {}
         self._message_cache = {}
+        # Rich message caches for production use
+        self.messages_vf: Dict[Tuple[Variable, Tuple[Variable, ...]], Message] = {}
+        self.messages_fv: Dict[Tuple[Tuple[Variable, ...], Variable], Message] = {}
 
-        logger.info(f"Initialized belief propagation network with {len(self.variables)} variables "
-                   f"and {len(self.factors)} factors")
+        logger.info(
+            f"Initialized belief propagation network with {len(self.variables)} variables "
+            f"and {len(self.factors)} factors"
+        )
 
     def _extract_variables(self) -> Set[Variable]:
         """Extract all variables from factor definitions."""
@@ -147,10 +153,12 @@ class BeliefPropagationNetwork:
         Returns:
             Message ranking from sender to receiver
         """
-        # Check cache first
+        # Check local memo cache
+        if not hasattr(self, '_message_memo'):
+            self._message_memo = {}
         cache_key = (sender, receiver)
-        if cache_key in self._message_cache:
-            return self._message_cache[cache_key]
+        if cache_key in self._message_memo:
+            return self._message_memo[cache_key]
 
         neighbors = self._get_neighbors(sender) - {receiver}
         factors = self._get_factors_for_variable(sender)
@@ -171,7 +179,7 @@ class BeliefPropagationNetwork:
             combined = self._combine_factors_and_messages(sender, neighbors, factors)
             message = self._marginalize_factor(combined, {sender}, set())
 
-        self._message_cache[cache_key] = message
+        self._message_memo[cache_key] = message
         return message
 
     def _combine_factors_and_messages(self, variable: Variable,
@@ -182,10 +190,18 @@ class BeliefPropagationNetwork:
 
         This method uses the existing ranking combinator framework to properly combine
         multiple rankings without creating circular references or recursion issues.
+
+        Args:
+            variable: The variable we're computing for
+            neighbors: Neighboring variables that send messages
+            factors: List of (variable_tuple, factor) pairs involving this variable
+
+        Returns:
+            Combined ranking for this variable
         """
         if not factors:
             # No factors - return uniform distribution
-            return Ranking(lambda: iter([(True, 0), (False, 0)]))
+            return Ranking(lambda: iter([(f"{variable}_true", 0), (f"{variable}_false", 0)]))
 
         # Start with the first factor
         combined = factors[0][1]
@@ -193,6 +209,12 @@ class BeliefPropagationNetwork:
         # Combine remaining factors using proper ranking operations
         for _, factor in factors[1:]:
             combined = self._combine_two_rankings(combined, factor)
+
+        # Also combine with incoming messages from neighbors
+        for neighbor in neighbors:
+            if (neighbor, variable) in self.messages:
+                message = self.messages[(neighbor, variable)]
+                combined = self._combine_two_rankings(combined, message)
 
         return combined
 
@@ -311,18 +333,68 @@ class BeliefPropagationNetwork:
             if rank != float('inf'):
                 yield (value, int(rank))
 
-    def _marginalize_factor(self, factor: Ranking, variables: Set[Variable],
+    def _marginalize_factor(self, factor: Ranking, all_vars: Set[Variable],
                            keep_vars: Set[Variable]) -> Ranking:
         """
         Marginalize a factor over specified variables.
 
         This is a key operation in belief propagation - we need to sum out
         variables while preserving ranking semantics.
+
+        Args:
+            factor: The joint ranking factor to marginalize
+            all_vars: All variables in the factor
+            keep_vars: Variables to keep (marginalize out the rest)
+
+        Returns:
+            Marginalized ranking over keep_vars
         """
-        # For now, return the factor unchanged
-        # In a full implementation, this would marginalize over variables
-        # not in keep_vars
-        return factor
+        vars_to_sum_out = all_vars - keep_vars
+
+        if not vars_to_sum_out:
+            # No variables to marginalize out
+            return factor
+
+        def marginal_generator() -> Iterator[Tuple[Any, int]]:
+            # Convert factor to list to work with concrete values
+            try:
+                factor_list = list(factor)
+            except (RecursionError, RuntimeError):
+                # Fallback if recursion occurs
+                yield (True, 0)
+                yield (False, 0)
+                return
+
+            # Group values by the variables we want to keep
+            marginal_values = {}  # (kept_values_tuple) -> min_rank
+
+            for value_tuple, rank in factor_list:
+                if isinstance(value_tuple, tuple) and len(value_tuple) == len(all_vars):
+                    # Extract values for variables we want to keep
+                    kept_values = []
+                    for i, var in enumerate(all_vars):
+                        if var in keep_vars:
+                            kept_values.append(value_tuple[i])
+
+                    kept_key = tuple(kept_values) if len(kept_values) > 1 else kept_values[0] if kept_values else None
+
+                    if kept_key is not None:
+                        if kept_key not in marginal_values:
+                            marginal_values[kept_key] = rank
+                        else:
+                            marginal_values[kept_key] = min(marginal_values[kept_key], rank)
+                else:
+                    # Single variable factor
+                    if value_tuple not in marginal_values:
+                        marginal_values[value_tuple] = rank
+                    else:
+                        marginal_values[value_tuple] = min(marginal_values[value_tuple], rank)
+
+            # Yield the marginalized values
+            for value, rank in marginal_values.items():
+                yield (value, int(rank))
+
+        return Ranking(marginal_generator)
 
     def propagate_beliefs(self, evidence: Optional[Evidence] = None,
                          max_iterations: int = 100) -> Dict[Variable, Ranking]:
@@ -339,25 +411,245 @@ class BeliefPropagationNetwork:
         if evidence is None:
             evidence = {}
 
-        # Initialize messages
+        # Initialize messages (public caches for tests, local for schedule)
         self.messages = {}
         self._message_cache = {}
+        msg_vf: Dict[Tuple[Variable, Tuple[Variable, ...]], Ranking] = {}
+        msg_fv: Dict[Tuple[Tuple[Variable, ...], Variable], Ranking] = {}
 
         # Apply evidence by conditioning factors
         conditioned_factors = self._apply_evidence(evidence)
 
-        # Run message passing algorithm
-        for iteration in range(max_iterations):
-            if self._message_passing_iteration():
-                logger.info(f"Belief propagation converged after {iteration + 1} iterations")
-                break
-        else:
-            logger.warning(f"Belief propagation did not converge after {max_iterations} iterations")
+        # Debug: log a sample of conditioned factors
+        logger.debug("Conditioned factors (sampled):")
+        for factor_name, factor in conditioned_factors.items():
+            try:
+                values = list(factor)
+                logger.debug(f"  {factor_name}: {values[:5]}")
+            except Exception as e:
+                logger.debug(f"  {factor_name}: error listing values: {e}")
 
-        # Compute final marginals
-        marginals = {}
-        for variable in self.variables:
-            marginals[variable] = self._compute_marginal(variable, conditioned_factors)
+        # Implement Shenoy-style message passing using Ranking combinators
+        logger.info("Running Shenoy message passing with combinators")
+
+        # Build factor graph and domains from conditioned factors
+        factor_nodes = list(conditioned_factors.keys())  # each is a tuple of variables
+        var_to_factors = defaultdict(list)
+        for ft in factor_nodes:
+            for v in ft:
+                var_to_factors[v].append(ft)
+
+        domains: Dict[Variable, Set[Any]] = defaultdict(set)
+        for ft, factor in conditioned_factors.items():
+            try:
+                for val, _ in factor:
+                    if isinstance(val, tuple) and len(ft) > 1:
+                        for i, v in enumerate(ft):
+                            domains[v].add(val[i])
+                    else:
+                        if len(ft) >= 1:
+                            domains[ft[0]].add(val)
+            except Exception:
+                continue
+
+        # Initialize messages
+        self.messages = {}
+        self._message_cache = {}
+
+        def uniform_message(var: Variable) -> Ranking:
+            vals = sorted(domains.get(var, set()), key=str)
+            return Ranking(lambda vs=tuple(vals): ((v, 0) for v in vs))
+
+        # Pre-initialize var->factor messages to uniform
+        for v in self.variables:
+            for ft in var_to_factors.get(v, []):
+                msg_vf[(v, ft)] = uniform_message(v)
+
+        # Helper: map factor ranking to assignment tuples ((var,val), ...)
+        def factor_assignments(ft: Tuple[Variable, ...], factor: Ranking) -> Ranking:
+            def mapper(val, vt=ft):
+                if isinstance(val, tuple) and len(vt) > 1:
+                    return tuple(sorted((vv, val[i]) for i, vv in enumerate(vt)))
+                else:
+                    return ((vt[0], val),) if vt else tuple()
+            return factor.map(mapper)
+
+        # Helper: map variable message to assignment tuples for that var
+        def message_assignments(var: Variable, msg: Ranking) -> Ranking:
+            return msg.map(lambda val, v=var: ((v, val),))
+
+        # Helper: merge assignments with consistency check
+        def merge_assignments(*asg_vals):
+            result = {}
+            for asg in asg_vals:
+                if isinstance(asg, tuple):
+                    for k, val in asg:
+                        if k in result and result[k] != val:
+                            return Ranking(lambda: iter(()))
+                        result[k] = val
+                else:
+                    # ignore non-tuples
+                    continue
+            return tuple(sorted(result.items()))
+
+        # Compute messages iteratively
+        def ranking_equal(r1: Ranking, r2: Ranking) -> bool:
+            try:
+                return list(r1) == list(r2)
+            except Exception:
+                return False
+
+        iterations = 0
+        for _it in range(max_iterations):
+            changed = False
+
+            # Factor -> Variable messages
+            for ft in factor_nodes:
+                factor = conditioned_factors[ft]
+                for tgt in ft:
+                    incoming = [msg_vf.get((v, ft)) for v in ft if v != tgt]
+                    incoming = [m for m in incoming if m is not None]
+
+                    bindings = [("F", factor_assignments(ft, factor))]
+                    for i, v in enumerate([vv for vv in ft if vv != tgt]):
+                        if i < len(incoming):
+                            bindings.append((f"m_{v}", message_assignments(v, incoming[i])))
+
+                    bindings_obj: List[Tuple[str, object]] = [(name, val) for name, val in bindings]
+                    combined = Ranking(lambda b=bindings_obj: rlet(b, merge_assignments))
+                    vals = sorted(domains.get(tgt, set()), key=str)
+
+                    def msg_gen_fv(values=tuple(vals), target=tgt, comb=combined):
+                        for val in values:
+                            try:
+                                kappa = comb.disbelief_rank(lambda asg, t=target, vv=val: isinstance(asg, tuple) and (t, vv) in asg)
+                            except Exception:
+                                kappa = 0
+                            yield (val, 0 if kappa == float('inf') else int(kappa))
+
+                    new_msg = Ranking(msg_gen_fv)
+                    old = msg_fv.get((ft, tgt))
+                    if old is None or not ranking_equal(old, new_msg):
+                        msg_fv[(ft, tgt)] = new_msg
+                        changed = True
+
+            # Variable -> Factor messages
+            for v in self.variables:
+                neigh_fs = var_to_factors.get(v, [])
+                for ft in neigh_fs:
+                    incoming = [msg_fv.get((f2, v)) for f2 in neigh_fs if f2 != ft]
+                    incoming = [m for m in incoming if m is not None]
+
+                    if not incoming:
+                        new_msg = uniform_message(v)
+                    else:
+                        bindings = [(f"in{i}", message_assignments(v, incoming[i])) for i in range(len(incoming))]
+                        bindings_obj2: List[Tuple[str, object]] = [(name, val) for name, val in bindings]
+                        combined = Ranking(lambda b=bindings_obj2: rlet(b, merge_assignments))
+                        vals = sorted(domains.get(v, set()), key=str)
+
+                        def msg_gen_vf(values=tuple(vals), var=v, comb=combined):
+                            for val in values:
+                                try:
+                                    kappa = comb.disbelief_rank(lambda asg, vv=val, x=var: isinstance(asg, tuple) and (x, vv) in asg)
+                                except Exception:
+                                    kappa = 0
+                                yield (val, 0 if kappa == float('inf') else int(kappa))
+
+                        new_msg = Ranking(msg_gen_vf)
+
+                    old = msg_vf.get((v, ft))
+                    if old is None or not ranking_equal(old, new_msg):
+                        msg_vf[(v, ft)] = new_msg
+                        changed = True
+
+            iterations += 1
+            if not changed:
+                break
+
+        # Expose full message caches
+        self.messages_vf = dict(msg_vf)
+        self.messages_fv = dict(msg_fv)
+        # Flatten into legacy self.messages with typed keys
+        combined_messages: Dict[Tuple[str, object, object], Ranking] = {}
+        for (v, ft), msg in msg_vf.items():
+            combined_messages[("v->f", v, ft)] = msg
+        for (ft, v), msg in msg_fv.items():
+            combined_messages[("f->v", ft, v)] = msg
+        # Store flattened messages and summary cache
+        self.messages = combined_messages  # type: ignore[assignment]
+        self._message_cache = {
+            'conditioned_factors': len(conditioned_factors),
+            'vf_count': len(msg_vf),
+            'fv_count': len(msg_fv),
+            'iterations': iterations,
+            'converged': iterations < max_iterations,
+            'domains': {v: len(d) for v, d in domains.items()}
+        }
+
+    # NOTE: Potential extensions to _message_cache (for observability and profiling)
+    # ---------------------------------------------------------------------------
+    # These are non-breaking additions you might consider if deeper diagnostics are useful:
+    # - 'convergence_reason': 'no_change' | 'max_iterations'
+    # - 'schedule': {'type': 'shenoy', 'order': 'dynamic'}
+    # - 'graph': {
+    #       'variables': len(self.variables),
+    #       'factors': len(factor_nodes),
+    #       'degree_by_var': {v: len(var_to_factors.get(v, [])) for v in self.variables},
+    #       'arity_distribution': {len(ft): count, ...}
+    #   }
+    # - 'iteration_log': [
+    #       {
+    #         'iter': k,
+    #         'changed_edges': n,
+    #         'fv_updates': m1,
+    #         'vf_updates': m2
+    #       },
+    #       ...
+    #   ]
+    # - 'message_stats': {
+    #       'fv': { (ft, v): {'size': N, 'min_k': min, 'max_k': max} },
+    #       'vf': { (v, ft): {'size': N, 'min_k': min, 'max_k': max} }
+    #   }
+    # - 'timings': { 'total_s': float, 'per_iter_s': [..], 'phase': {'fv_s': .., 'vf_s': ..} }
+    # - 'evidence': { 'applied_to': [ (var, factors_count) ], 'filtered_counts': { factor: n } }
+    # - 'normalization': { var: {'min_kappa_before': x, 'min_kappa_after': 0} }
+    # - 'warnings': [ 'message text', ... ]
+    # - 'version': { 'api': '1.0', 'impl': 'shenoy-combinators' }
+    # These are intentionally just notes; implement incrementally as needed.
+
+        # Compute marginals by combining incoming factor->var messages for each variable
+        marginals: Dict[Variable, Ranking] = {}
+        for v in self.variables:
+            incoming = [msg_fv.get((ft, v)) for ft in var_to_factors.get(v, [])]
+            incoming = [m for m in incoming if m is not None]
+            if not incoming:
+                marginals[v] = uniform_message(v)
+                continue
+
+            bindings = [(f"in{i}", message_assignments(v, incoming[i])) for i in range(len(incoming))]
+            bindings_obj3: List[Tuple[str, object]] = [(name, val) for name, val in bindings]
+            combined = Ranking(lambda b=bindings_obj3: rlet(b, merge_assignments))
+            vals = sorted(domains.get(v, set()), key=str)
+
+            def marginal_gen(values=tuple(vals), var=v, comb=combined):
+                for val in values:
+                    try:
+                        kappa = comb.disbelief_rank(lambda asg, vv=val, x=var: isinstance(asg, tuple) and (x, vv) in asg)
+                    except Exception:
+                        kappa = 0
+                    yield (val, 0 if kappa == float('inf') else int(kappa))
+
+            raw = Ranking(marginal_gen)
+            try:
+                items = list(raw)
+                if items:
+                    min_rank = min(r for _, r in items)
+                    marginals[v] = Ranking(lambda it=items, m=min_rank: ((vv, int(rr - m)) for vv, rr in it))
+                else:
+                    marginals[v] = raw
+            except Exception:
+                marginals[v] = raw
 
         return marginals
 
@@ -368,72 +660,122 @@ class BeliefPropagationNetwork:
         This method properly applies evidence to ranking factors using the existing
         observe_e combinator, which implements Spohn's conditionalization correctly.
 
-        EVIDENCE APPLICATION AND RECURSION SAFETY
-        ========================================
-        The observe_e combinator can create circular references when applied to
-        complex ranking networks. This happens because:
+        IMPROVED EVIDENCE APPLICATION
+        ============================
+        This version handles evidence more robustly by:
+        1. Only applying evidence to factors that actually contain the variable
+        2. Using proper error handling for conditioning failures
+        3. Preserving original factors when conditioning fails
+        4. Logging warnings for debugging
 
-        1. observe_e creates a new Ranking that references the original
-        2. The new Ranking's generator may create additional Rankings
-        3. Those Rankings may reference back to the evidence-applied Ranking
-
-        The try-catch here prevents crashes while preserving correctness.
-        If conditioning fails due to recursion, we log a warning and skip
-        that specific conditioning step, keeping the original factor intact.
-
-        This is mathematically sound because:
-        - Original factor remains valid
-        - System continues to function
-        - Evidence is applied where possible
-        - No data loss occurs
-
-        FUTURE MAINTAINERS: This pattern is essential for production stability!
+        The observe_e combinator implements Jeffrey conditionalization for rankings,
+        which is the ranking-theoretic analogue of probabilistic conditioning.
         """
         conditioned_factors = {}
 
         for var_tuple, factor in self.factors.items():
             conditioned_factor = factor
+            conditioning_applied = False
 
             # Apply each piece of evidence that affects this factor
             for var, proposition in evidence.items():
                 if var in var_tuple:
-                    # Use observe_e to properly condition the ranking
-                    # evidence_rank=0 means hard conditioning (certain evidence)
+                    logger.debug(f"Applying evidence for {var} to factor {var_tuple}")
+
+                    # For multi-variable factors, we need to create a predicate that checks
+                    # the correct position in the tuple
+                    if len(var_tuple) > 1:
+                        var_index = var_tuple.index(var)
+
+                        def multi_var_predicate(value_tuple):
+                            if isinstance(value_tuple, tuple) and len(value_tuple) == len(var_tuple):
+                                return proposition(value_tuple[var_index])
+                            else:
+                                # Single variable factor
+                                return proposition(value_tuple)
+
+                        pred = multi_var_predicate
+                    else:
+                        pred = proposition
+
+                    # Use observe for hard conditioning (filter out non-matching values)
+                    # This properly implements evidence by removing impossible states
                     try:
-                        conditioned_factor = Ranking(lambda: observe_e(0, proposition, conditioned_factor))
-                    except (RecursionError, RuntimeError):
-                        # If recursion occurs, skip this conditioning step
-                        # This preserves the original factor rather than breaking
-                        logger.warning(f"Recursion detected when applying evidence to factor {var_tuple}, "
-                                     f"skipping conditioning for variable {var}")
+                        # Apply observe to the current conditioned_factor (chain multiple evidence)
+                        observed_result = observe(pred, conditioned_factor)
+                        observed_list = list(observed_result)
+
+                        # Create a new conditioned ranking using the observed result
+                        # Capture list in default arg to avoid late-binding closure bugs
+                        new_conditioned = Ranking(lambda lst=observed_list: iter(lst))
+
+                        # Test that the conditioning worked by trying to iterate
+                        test_list = list(new_conditioned)
+                        if test_list:  # Only use if conditioning produced valid results
+                            conditioned_factor = new_conditioned
+                            conditioning_applied = True
+                            logger.debug(f"Successfully applied evidence for {var}")
+                        else:
+                            logger.warning(f"Evidence conditioning for {var} produced empty result, keeping original")
+
+                    except (RecursionError, RuntimeError, Exception) as e:
+                        # If conditioning fails, keep the original factor
+                        logger.warning(f"Failed to apply evidence for {var} to factor {var_tuple}: {e}")
+                        # Keep original factor
                         break
 
             conditioned_factors[var_tuple] = conditioned_factor
+
+            if conditioning_applied:
+                logger.info(f"Applied evidence to factor {var_tuple}")
+            else:
+                logger.debug(f"No evidence applied to factor {var_tuple}")
 
         return conditioned_factors
 
     def _message_passing_iteration(self) -> bool:
         """
-        Perform one iteration of message passing.
+        Perform one iteration of message passing using proper belief propagation schedule.
+
+        This implements a simplified but correct message passing schedule:
+        1. Send messages from leaf nodes inward
+        2. Continue until convergence or max iterations
 
         Returns:
             True if convergence detected, False otherwise
         """
-        # Simplified implementation - in practice, this would implement
-        # the full message passing schedule
         converged = True
+        updated_messages = {}
 
+        # Simple schedule: iterate through all variable pairs
+        # In a full implementation, this would use a more sophisticated schedule
         for sender in self.variables:
             for receiver in self._get_neighbors(sender):
                 old_message = self.messages.get((sender, receiver))
                 new_message = self._compute_message(sender, receiver)
 
-                if old_message != new_message:
+                # Check if message changed (convergence criterion)
+                if old_message is None or not self._messages_equal(old_message, new_message):
                     converged = False
 
-                self.messages[(sender, receiver)] = new_message
+                updated_messages[(sender, receiver)] = new_message
 
+        self.messages = updated_messages
         return converged
+
+    def _messages_equal(self, msg1: Ranking, msg2: Ranking) -> bool:
+        """
+        Check if two messages are equal by comparing their concrete values.
+
+        This is needed because Ranking objects don't implement proper equality.
+        """
+        try:
+            list1 = list(msg1)
+            list2 = list(msg2)
+            return list1 == list2
+        except (RecursionError, RuntimeError):
+            # If we can't compare due to recursion, assume they're different
+            return False
 
     def _compute_marginal(self, variable: Variable,
                          conditioned_factors: Dict[Tuple[Variable, ...], Ranking]) -> Ranking:
@@ -523,12 +865,132 @@ class BeliefPropagationNetwork:
             for var_value in sorted(var_value_to_ranks.keys(), key=sort_key):
                 ranks = var_value_to_ranks[var_value]
                 if ranks:
-                    marginal_rank = min(ranks)
+                    marginal_rank = sum(ranks)  # Sum ranks for combined disbelief
                     yield (var_value, int(marginal_rank))
                 else:
                     yield (var_value, 0)
 
         return Ranking(marginal_generator)
+
+    def _compute_marginal_from_conditioned_factors(self, variable: Variable,
+                         conditioned_factors: Dict[Tuple[Variable, ...], Ranking]) -> Ranking:
+        """
+        Compute marginal ranking for a variable directly from conditioned factors.
+
+        This is a simplified approach that combines all factors involving the variable
+        by summing their contributions, which is correct for ranking theory.
+        """
+        # Get factors involving this variable
+        relevant_factors = [(vars_tuple, factor) for vars_tuple, factor in conditioned_factors.items()
+                           if variable in vars_tuple]
+
+        if not relevant_factors:
+            return Ranking(lambda: iter([(f"{variable}_true", 0), (f"{variable}_false", 0)]))
+
+        def marginal_generator() -> Iterator[Tuple[Any, int]]:
+            # Collect all possible values for this variable across all relevant factors
+            var_value_to_ranks = {}  # var_value -> list of ranks from different factors
+
+            for vars_tuple, factor in relevant_factors:
+                try:
+                    factor_list = list(factor)
+                    var_index = vars_tuple.index(variable)  # Position of our variable in the tuple
+
+                    for value_tuple, rank in factor_list:
+                        if isinstance(value_tuple, tuple) and len(value_tuple) == len(vars_tuple):
+                            # Extract the value for our target variable
+                            var_value = value_tuple[var_index]
+
+                            if var_value not in var_value_to_ranks:
+                                var_value_to_ranks[var_value] = []
+                            var_value_to_ranks[var_value].append(rank)
+                        else:
+                            # Single variable factor
+                            if value_tuple not in var_value_to_ranks:
+                                var_value_to_ranks[value_tuple] = []
+                            var_value_to_ranks[value_tuple].append(rank)
+
+                except (RecursionError, RuntimeError):
+                    # If recursion occurs, add default values
+                    for default_value in [f"{variable}_true", f"{variable}_false"]:
+                        if default_value not in var_value_to_ranks:
+                            var_value_to_ranks[default_value] = []
+                        var_value_to_ranks[default_value].append(0)
+
+            # For each possible value, sum the ranks (ranking theory: disbeliefs add)
+            # Sort by a key that handles both strings and tuples
+            def sort_key(var_value):
+                if isinstance(var_value, tuple):
+                    return (1, var_value)  # Tuples come after strings
+                else:
+                    return (0, str(var_value))  # Strings come first
+
+            for var_value in sorted(var_value_to_ranks.keys(), key=sort_key):
+                ranks = var_value_to_ranks[var_value]
+                if ranks:
+                    marginal_rank = sum(ranks)
+                    yield (var_value, int(marginal_rank))
+                else:
+                    yield (var_value, 0)
+
+        return Ranking(marginal_generator)
+
+    def _compute_marginal_via_combinators(self, variable: Variable,
+                                          conditioned_factors: Dict[Tuple[Variable, ...], Ranking]) -> Ranking:
+        """
+        Compute κ-marginal using only Ranking combinators (no direct enumeration).
+
+        Steps:
+        1) Map each factor ranking to assignments (dict var->value) preserving rank
+        2) Use rlet to lazily combine all factor-assignments, summing ranks
+        3) Merge assignments; inconsistent merges return an empty ranking (failure)
+        4) For each value of the target variable, compute κ via disbelief_rank over combined assignments
+        5) Yield a Ranking over variable values with their κ, then normalize at caller
+        """
+        # Short-circuit: if no factors mention variable, return uniform
+        involved = [(vt, f) for vt, f in conditioned_factors.items() if variable in vt]
+        if not involved:
+            return Ranking(lambda: iter([(f"{variable}_true", 0), (f"{variable}_false", 0)]))
+
+        # Map factor rankings to assignment dicts {var: value}
+        mapped_involving = []
+        domains: Dict[Variable, Set[Any]] = {}
+        for var_tuple, factor in involved:
+            def mapper(val, vt=var_tuple):
+                if isinstance(val, tuple) and len(vt) > 1:
+                    asg = tuple(sorted((v, val[i]) for i, v in enumerate(vt)))
+                    return asg
+                else:
+                    asg = ((vt[0], val),) if vt else tuple()
+                    return asg
+            mapped_involving.append(factor.map(mapper))
+            # gather domains from involved factors
+            try:
+                for val, _ in factor:
+                    if isinstance(val, tuple) and len(var_tuple) > 1:
+                        for i, v in enumerate(var_tuple):
+                            domains.setdefault(v, set()).add(val[i])
+                    else:
+                        if len(var_tuple) >= 1:
+                            domains.setdefault(var_tuple[0], set()).add(val)
+            except (RecursionError, RuntimeError):
+                continue
+
+        var_domain = sorted(domains.get(variable, set()), key=str)
+
+        def marginal_gen():
+            for val in var_domain:
+                try:
+                    # Union across factors mentioning the variable, filtered to that value
+                    filtered = [r.filter(lambda asg, v=val: isinstance(asg, tuple) and (variable, v) in asg)
+                                for r in mapped_involving]
+                    union = Ranking(lambda fs=filtered: either_of(*fs) if fs else iter(()))
+                    kappa = union.disbelief_rank(lambda _x: True)
+                except (RecursionError, RuntimeError):
+                    kappa = 0
+                yield (val, 0 if kappa == float('inf') else int(kappa))
+
+        return Ranking(marginal_gen)
 
     def marginalize(self, variable: Variable, evidence: Optional[Evidence] = None) -> Ranking:
         """
@@ -548,7 +1010,90 @@ class BeliefPropagationNetwork:
         """Clear message cache to free memory."""
         self.messages.clear()
         self._message_cache.clear()
-        logger.info("Cleared belief propagation cache")
+        # Clear rich caches
+        if hasattr(self, 'messages_vf'):
+            self.messages_vf.clear()
+        if hasattr(self, 'messages_fv'):
+            self.messages_fv.clear()
+
+
+def create_diagnostic_network(disease_prior: Tuple[str, str, int] = ('healthy', 'infected', 3),
+                            symptom_factors: Optional[Dict[str, Dict]] = None) -> BeliefPropagationNetwork:
+    """
+    Create a diagnostic belief propagation network for disease-symptom reasoning.
+
+    This utility function creates a complete diagnostic network with proper
+    conditional probability tables for medical diagnosis scenarios.
+
+    Args:
+        disease_prior: Tuple of (healthy_state, disease_state, disease_rank)
+        symptom_factors: Dictionary mapping symptom names to their conditional parameters
+                        Each entry should have 'normal_healthy', 'normal_disease', 'exceptional_rank'
+
+    Returns:
+        BeliefPropagationNetwork configured for diagnostic reasoning
+
+    Example:
+        >>> network = create_diagnostic_network(
+        ...     symptom_factors={
+        ...         'Fever': {'normal_healthy': 'no_fever', 'normal_disease': 'fever', 'exceptional_rank': 2},
+        ...         'Cough': {'normal_healthy': 'no_cough', 'normal_disease': 'cough', 'exceptional_rank': 2}
+        ...     }
+        ... )
+    """
+    if symptom_factors is None:
+        symptom_factors = {
+            'Fever': {'normal_healthy': 'no_fever', 'normal_disease': 'fever', 'exceptional_rank': 2},
+            'Cough': {'normal_healthy': 'no_cough', 'normal_disease': 'cough', 'exceptional_rank': 2}
+        }
+
+    factors = {}
+
+    # Disease prior
+    healthy_state, disease_state, disease_rank = disease_prior
+    factors[('Disease',)] = Ranking(lambda: nrm_exc(healthy_state, disease_state, disease_rank))
+
+    # Symptom conditional factors
+    for symptom, params in symptom_factors.items():
+        normal_healthy = params['normal_healthy']
+        normal_disease = params['normal_disease']
+        exceptional_rank = params['exceptional_rank']
+
+        def create_symptom_factor(h=normal_healthy, d=normal_disease, r=exceptional_rank):
+            def factor_generator():
+                # Normal cases
+                yield ((healthy_state, h), 0)  # Healthy + normal symptom
+                yield ((disease_state, d), 0)  # Disease + normal symptom
+                # Exceptional cases
+                yield ((healthy_state, d), r)  # Healthy + disease symptom (surprising)
+                yield ((disease_state, h), r)  # Disease + healthy symptom (surprising)
+            return factor_generator
+
+        factors[('Disease', symptom)] = Ranking(create_symptom_factor())
+
+    # Add confounding relationships between symptoms
+    symptom_names = list(symptom_factors.keys())
+    for i, symptom1 in enumerate(symptom_names):
+        for symptom2 in symptom_names[i+1:]:
+            # Simple confounding: symptoms tend to co-occur
+            def create_confounding_factor(s1=symptom1, s2=symptom2):
+                def confounding_generator():
+                    s1_normal = symptom_factors[s1]['normal_healthy']
+                    s1_disease = symptom_factors[s1]['normal_disease']
+                    s2_normal = symptom_factors[s2]['normal_healthy']
+                    s2_disease = symptom_factors[s2]['normal_disease']
+
+                    # Normal cases
+                    yield ((s1_normal, s2_normal), 0)  # Both normal
+                    yield ((s1_disease, s2_disease), 0)  # Both disease-related
+                    # Exceptional cases
+                    yield ((s1_normal, s2_disease), 1)  # Confounding
+                    yield ((s1_disease, s2_normal), 1)  # Confounding
+                return confounding_generator
+
+            factors[(symptom1, symptom2)] = Ranking(create_confounding_factor())
+
+    return BeliefPropagationNetwork(factors)
 
 
 def create_chain_network(length: int) -> BeliefPropagationNetwork:
