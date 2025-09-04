@@ -7,6 +7,12 @@ from .srm import StructuralRankingModel, Variable
 from .causal_v2 import is_cause, total_effect
 from .ranked_pc import ranked_ci, pc_skeleton
 from .explanations import MinimalRepairSolver, RepairSearchConfig, root_cause_chain
+from .identification import (
+    is_backdoor_admissible,
+    backdoor_adjusted_effect,
+    is_frontdoor_applicable,
+    frontdoor_effect,
+)
 
 __all__ = [
     "StructuralRankingModel",
@@ -18,4 +24,8 @@ __all__ = [
     "MinimalRepairSolver",
     "RepairSearchConfig",
     "root_cause_chain",
+    "is_backdoor_admissible",
+    "backdoor_adjusted_effect",
+    "is_frontdoor_applicable",
+    "frontdoor_effect",
 ]

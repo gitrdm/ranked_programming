@@ -20,9 +20,10 @@ Progress summary (2025-09-04)
 - M1 baseline implemented: stable reason-relations (`is_cause`) and `total_effect` under surgery.
 - M2 implemented: ranked CI (`ranked_ci`) and PC skeleton (`pc_skeleton`) with v-structure orientation.
 - M3 baseline implemented: minimal repairs (`MinimalRepairSolver`) and root-cause chains (`root_cause_chain`).
+- M4 implemented: identification (`is_backdoor_admissible`, `backdoor_adjusted_effect`, `is_frontdoor_applicable`, `frontdoor_effect`).
 - Exports added under `ranked_programming.causal`.
-- Unit tests added: `tests/causal/test_srm.py`, `tests/causal/test_causation_v2.py`, `tests/causal/test_ranked_pc.py`, `tests/causal/test_explanations.py`.
-- Full suite passing: 202 tests.
+- Unit tests added: `tests/causal/test_srm.py`, `tests/causal/test_causation_v2.py`, `tests/causal/test_ranked_pc.py`, `tests/causal/test_explanations.py`, `tests/causal/test_identification.py`.
+- Full suite passing: 206 tests.
 
 ## M0 — Structural Ranking Model (SRM) + Surgery
 
@@ -142,10 +143,15 @@ Artifacts
 - Tests: `tests/causal/test_identification.py`
 
 Tests
-- Backdoor examples where Z blocks confounding; effect matches direct surgery in acyclic simple models
+- Backdoor: Confounded A→B with common cause U; Z={U} admissible, ∅ not. Adjusted effect computed via min-plus aggregation.
+- Frontdoor: A→M→B with confounding U→{A,B}; applicability holds; mediator aggregation returns finite τ.
 
 DoD
-- Utilities usable on discovered/assumed graphs; documented behavior
+- Utilities usable on discovered/assumed graphs; documented behavior; Sphinx docstrings in code.
+
+Status: Completed 2025-09-04
+- Code: `src/ranked_programming/causal/identification.py` (PASS)
+- Tests: `tests/causal/test_identification.py` (PASS); suite 206 PASS
 
 ## M5 — Pluggable Solver Backends
 

@@ -1,6 +1,6 @@
 # Section 7–Compliant Causal Reasoning (Design Doc)
 
-Status: draft for review (M0 implemented)
+Status: draft for review (M0–M4 implemented)
 
 Owner: ranked_programming maintainers
 
@@ -43,12 +43,12 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
   - Exports available from `ranked_programming.causal`.
   - Tests cover topo order, composition, surgery, and cycle detection.
 
-+- Implemented M1 baseline (causation and effects):
+- Implemented M1 baseline (causation and effects):
   - Stable reason-relations `is_cause(A,B,srm,z,max_contexts)` with context enumeration by plausibility and τ via κ differences.
   - `total_effect(A,B,srm,a,a_alt)` via surgery do-operator.
   - Added graph query helpers to SRM for admissible context definition.
 
-+- Implemented M2 (ranked CI + PC skeleton):
+- Implemented M2 (ranked CI + PC skeleton):
   - Ranked CI predicate with symmetric τ checks under hard conditioning.
   - PC skeleton discovery using CI up to k, storing separating sets, and v-structure orientation.
   - Tests cover chain, fork, collider using noisy link mechanisms to ensure faithfulness.
@@ -58,21 +58,27 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
   - Root-cause chains traced along SRM DAG.
   - Tests cover chain graph minimal repairs and path narration.
 
-- Test suite passing: 202 tests.
+- Implemented M4 (identification):
+  - Backdoor admissibility check via d-separation on SRM DAG; excludes descendants of treatment.
+  - Backdoor-adjusted effect using rank min-plus aggregation over Z contexts with observational κ(Z=z).
+  - Frontdoor applicability check (sufficient conditions) and frontdoor effect via mediator aggregation using interventional components produced by surgery.
+  - Tests cover backdoor/frontdoor checks and effect computations.
 
-Next milestones: M1 (stable reason-relations), M2 (ranked CI + PC skeleton), as outlined below.
+- Test suite passing: 206 tests.
 
 ## High-level architecture
 
 - Core module: `srm.py` (Structural Ranking Model)
   - Declarative model of variables, parents, mechanisms (as Ranking combinators).
   - Generate observational `Ranking` and intervened `Ranking` via composition (`rlet_star`) and Shenoy BP when needed.
-- Causation module: `causal_do.py`
+- Causation module: `causal_v2.py`
   - Stable reason-relations causation test; effect strengths; conditional/screened effects.
 - Discovery module: `ranked_pc.py`
   - Ranked CI test; PC/FCI-like skeleton adapted to ranks; edge orientation rules.
 - Explanations module: `explanations.py`
   - Minimal repair, root-cause chains, per-world proofs.
+- Identification module: `identification.py`
+  - Backdoor/frontdoor criteria and rank-based effect estimators using SRM surgery and min-plus aggregation.
 - Integration: optional `constraints.py` to leverage SMT and/or Prolog/kanren for repair-set minimality and CI counterexamples.
 
 All modules depend on existing `Ranking` primitives and do not reimplement ranking engines.
@@ -107,6 +113,12 @@ All modules depend on existing `Ranking` primitives and do not reimplement ranki
 - Explanations
   - `minimal_repair(world, targets: List[str], srm) -> List[Set[str]]`
   - `root_cause_chain(world, target: str, graph, srm) -> List[str]`
+
+- Identification
+  - `backdoor_admissible(A, B, Z, srm) -> bool`: checks if Z blocks all backdoor paths from A to B.
+  - `backdoor_effect(A, B, srm, z=1) -> float`: estimates the effect of A on B using backdoor adjustment with Z.
+  - `frontdoor_admissible(A, M, srm) -> bool`: checks sufficient conditions for frontdoor adjustment.
+  - `frontdoor_effect(A, M, srm) -> float`: estimates the frontdoor effect of A on its mediators.
 
 API usage is intentionally SCM-like but remains rank-native.
 
