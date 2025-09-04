@@ -18,9 +18,10 @@ Progress summary (2025-09-04)
 - M0 implemented: `StructuralRankingModel` with surgery-based `do()`; internal DAG validation + topological order (no external deps).
 - Graph queries added: parents/children/ancestors/descendants with Sphinx-friendly docstrings.
 - M1 baseline implemented: stable reason-relations (`is_cause`) and `total_effect` under surgery.
+- M2 implemented: ranked CI (`ranked_ci`) and PC skeleton (`pc_skeleton`) with v-structure orientation.
 - Exports added under `ranked_programming.causal`.
-- Unit tests added: `tests/causal/test_srm.py`, `tests/causal/test_causation_v2.py`.
-- Full suite passing: 197 tests.
+- Unit tests added: `tests/causal/test_srm.py`, `tests/causal/test_causation_v2.py`, `tests/causal/test_ranked_pc.py`.
+- Full suite passing: 200 tests.
 
 ## M0 — Structural Ranking Model (SRM) + Surgery
 
@@ -81,22 +82,26 @@ Status: In progress (baseline landed 2025-09-04)
 ## M2 — Ranked CI + PC/FCI Skeleton
 
 Steps
-1) Ranked CI predicate `ci(A,B|Z)` with ε tolerance
+1) Ranked CI predicate `ranked_ci(A,B|Z)` with ε tolerance (hard conditioning)
 2) PC skeleton
    - Adjacency pruning by CI up to k
-   - Store separating sets; orient v-structures; Meek rules
-3) FCI optional partial orientation
+   - Store separating sets; orient v-structures; Meek rules (planned)
+3) FCI optional partial orientation (planned)
 
 Artifacts
 - `src/ranked_programming/causal/ranked_pc.py`
 - Tests: `tests/causal/test_ranked_pc.py`
 
 Tests
-- Recover chain, fork, collider on canonical 3–5 node graphs
-- Sensitivity to ε and k_max documented
+- Recover chain, fork, collider on canonical 3–5 node graphs with noisy links
+- Sensitivity to ε and k_max documented (planned)
 
 DoD
 - PC recovers correct skeleton/orientation on toys; API stable
+
+Status: Completed 2025-09-04 (skeleton + v-structures)
+- Code: `src/ranked_programming/causal/ranked_pc.py`
+- Tests: `tests/causal/test_ranked_pc.py` (PASS); full suite 200 PASS
 
 ## M3 — Explanations: Minimal Repair + Root-Cause Chains
 

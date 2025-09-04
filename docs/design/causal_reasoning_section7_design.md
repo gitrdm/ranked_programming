@@ -43,12 +43,17 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
   - Exports available from `ranked_programming.causal`.
   - Tests cover topo order, composition, surgery, and cycle detection.
 
-- Implemented M1 baseline (causation and effects):
++- Implemented M1 baseline (causation and effects):
   - Stable reason-relations `is_cause(A,B,srm,z,max_contexts)` with context enumeration by plausibility and τ via κ differences.
   - `total_effect(A,B,srm,a,a_alt)` via surgery do-operator.
   - Added graph query helpers to SRM for admissible context definition.
 
-- Test suite passing: 197 tests.
++- Implemented M2 (ranked CI + PC skeleton):
+  - Ranked CI predicate with symmetric τ checks under hard conditioning.
+  - PC skeleton discovery using CI up to k, storing separating sets, and v-structure orientation.
+  - Tests cover chain, fork, collider using noisy link mechanisms to ensure faithfulness.
+
+- Test suite passing: 200 tests.
 
 Next milestones: M1 (stable reason-relations), M2 (ranked CI + PC skeleton), as outlined below.
 
