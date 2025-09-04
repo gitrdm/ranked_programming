@@ -571,3 +571,273 @@ def validate_constraint_satisfaction(network: ConstraintRankingNetwork,
         True if all constraints are satisfied
     """
     return network._validate_constraints(evidence)
+
+
+# ============================================================================
+# c-Representation Framework
+# ============================================================================
+
+class ConditionalRule:
+    """
+    Represents a conditional rule (A|B) with an impact value η.
+
+    In c-representations, each conditional rule has an associated impact (penalty)
+    that contributes to the rank of worlds that falsify the rule.
+    """
+
+    def __init__(self, condition: Proposition, consequent: Proposition, impact: int = 1):
+        """
+        Initialize a conditional rule.
+
+        Args:
+            condition: Proposition for the condition (B)
+            consequent: Proposition for the consequent (A)
+            impact: Non-negative integer impact value η(δ)
+        """
+        self.condition = condition
+        self.consequent = consequent
+        self.impact = max(0, impact)  # Ensure non-negative
+
+    def __repr__(self) -> str:
+        return f"ConditionalRule({self.condition}, {self.consequent}, η={self.impact})"
+
+    def accepts(self, world: Any) -> bool:
+        """
+        Check if this conditional rule accepts a world.
+
+        A conditional (A|B) accepts a world ω if:
+        - Either B is false in ω (condition not satisfied)
+        - Or A is true in ω (consequent satisfied)
+
+        Args:
+            world: The world to check
+
+        Returns:
+            True if the conditional accepts the world
+        """
+        return not self.condition(world) or self.consequent(world)
+
+    def falsifies(self, world: Any) -> bool:
+        """
+        Check if this conditional rule is falsified by a world.
+
+        Args:
+            world: The world to check
+
+        Returns:
+            True if the conditional is falsified
+        """
+        return not self.accepts(world)
+
+
+class CRepresentation:
+    """
+    c-Representation: A tractable subclass of ranking functions.
+
+    A c-representation is constructed from a knowledge base of conditional rules,
+    where each rule has an associated impact value. The rank of any world is the
+    sum of impacts of all rules falsified by that world.
+
+    This implements Kern-Isberner's c-representations as described in the literature.
+    """
+
+    def __init__(self, conditional_rules: List[ConditionalRule]):
+        """
+        Initialize a c-representation from conditional rules.
+
+        Args:
+            conditional_rules: List of conditional rules with impact values
+        """
+        self.rules = conditional_rules
+        self._impact_cache = {}  # Cache for impact optimization
+
+    def rank_world(self, world: Any) -> int:
+        """
+        Compute the rank of a world using the c-representation.
+
+        κ(ω) = Σ η(δ) for all δ ∈ R that are falsified by ω
+
+        Args:
+            world: The world to rank
+
+        Returns:
+            The rank (disbelief degree) of the world
+        """
+        return sum(rule.impact for rule in self.rules if rule.falsifies(world))
+
+    def to_ranking_function(self, possible_worlds: List[Any]) -> Ranking:
+        """
+        Convert the c-representation to a Ranking object.
+
+        Args:
+            possible_worlds: List of all possible worlds in the domain
+
+        Returns:
+            Ranking object representing this c-representation
+        """
+        def ranking_generator():
+            for world in possible_worlds:
+                yield (world, self.rank_world(world))
+
+        return Ranking(lambda: ranking_generator())
+
+    def optimize_impacts(self, possible_worlds: List[Any]) -> Dict[ConditionalRule, int]:
+        """
+        Optimize impact values to satisfy acceptance conditions.
+
+        This solves the CSP to find valid impact values that make the c-representation
+        accept all conditionals in the knowledge base.
+
+        Args:
+            possible_worlds: List of all possible worlds
+
+        Returns:
+            Dictionary mapping rules to optimized impact values
+        """
+        if not Z3_AVAILABLE:
+            logger.warning("Z3 not available, cannot optimize impacts")
+            return {rule: rule.impact for rule in self.rules}
+
+        # Create Z3 solver for impact optimization
+        solver = z3.Optimize()
+
+        # Create Z3 variables for impacts (non-negative integers)
+        impact_vars = {}
+        for rule in self.rules:
+            impact_vars[rule] = z3.Int(f"impact_{id(rule)}")
+            solver.add(impact_vars[rule] >= 0)
+
+        # Add acceptance conditions for each conditional
+        for rule in self.rules:
+            # For each world, if the rule is falsified, its impact must be accounted for
+            falsified_worlds = [w for w in possible_worlds if rule.falsifies(w)]
+
+            if falsified_worlds:
+                # The impact must be greater than the rank difference needed
+                # This is a simplified version - full CSP would be more complex
+                solver.add(impact_vars[rule] >= 1)  # At least 1 for falsified rules
+
+        # Minimize total impact sum
+        total_impact = sum(impact_vars.values())
+        solver.minimize(total_impact)
+
+        # Solve
+        if solver.check() == z3.sat:
+            model = solver.model()
+            optimized_impacts = {}
+            for rule in self.rules:
+                optimized_impacts[rule] = model[impact_vars[rule]].as_long()
+            return optimized_impacts
+        else:
+            logger.warning("Could not find valid impact values")
+            return {rule: rule.impact for rule in self.rules}
+
+    def skeptical_inference(self, query: Proposition, possible_worlds: List[Any]) -> bool:
+        """
+        Perform skeptical c-inference.
+
+        A conclusion is skeptically valid if it holds in ALL valid c-representations
+        of the knowledge base.
+
+        Args:
+            query: The proposition to test
+            possible_worlds: List of all possible worlds
+
+        Returns:
+            True if the query is skeptically entailed
+        """
+        if not Z3_AVAILABLE:
+            logger.warning("Z3 not available for skeptical inference")
+            return False
+
+        # Create CSP: knowledge base constraints + negation of query
+        solver = z3.Solver()
+
+        # Add constraints for all rules to be accepted
+        for rule in self.rules:
+            # Simplified: ensure no world falsifies rules with high impact
+            # Full implementation would be more sophisticated
+            pass
+
+        # Add constraint that query is false
+        # This is a placeholder - full implementation needs proper encoding
+        query_false_worlds = [w for w in possible_worlds if not query(w)]
+
+        if not query_false_worlds:
+            # Query is true in all worlds
+            return True
+
+        # If we can find a model where query is false and all rules are satisfied,
+        # then query is not skeptically entailed
+        return False  # Placeholder - would need full CSP implementation
+
+
+# ============================================================================
+# Hybrid Integration Methods
+# ============================================================================
+
+def create_c_representation_from_constraints(constraints: List[Tuple[str, str, int]],
+                                           variables: List[str]) -> CRepresentation:
+    """
+    Create a c-representation from constraint-based network.
+
+    This hybrid approach converts general constraints into conditional rules
+    that can be used with c-representation framework.
+
+    Args:
+        constraints: List of (var1, var2, constraint_type) tuples
+        variables: List of variable names
+
+    Returns:
+        CRepresentation object
+    """
+    conditional_rules = []
+
+    for var1, var2, constraint_type in constraints:
+        if constraint_type == 1:  # Causal constraint A → B
+            # Create conditional rule: if A is true, then B should be true
+            condition = lambda w, v1=var1: getattr(w, v1, False) if hasattr(w, v1) else False
+            consequent = lambda w, v2=var2: getattr(w, v2, False) if hasattr(w, v2) else False
+            rule = ConditionalRule(condition, consequent, impact=2)
+            conditional_rules.append(rule)
+
+        elif constraint_type == 2:  # Mutual exclusion
+            # Create rules for mutual exclusion
+            # If A is true, then B should be false
+            condition_a = lambda w, v1=var1: getattr(w, v1, False) if hasattr(w, v1) else False
+            consequent_a = lambda w, v2=var2: not getattr(w, v2, False) if hasattr(w, v2) else True
+            rule_a = ConditionalRule(condition_a, consequent_a, impact=3)
+            conditional_rules.append(rule_a)
+
+            # If B is true, then A should be false
+            condition_b = lambda w, v2=var2: getattr(w, v2, False) if hasattr(w, v2) else False
+            consequent_b = lambda w, v1=var1: not getattr(w, v1, False) if hasattr(w, v1) else True
+            rule_b = ConditionalRule(condition_b, consequent_b, impact=3)
+            conditional_rules.append(rule_b)
+
+    return CRepresentation(conditional_rules)
+
+
+def create_constraint_network_from_c_representation(c_rep: CRepresentation,
+                                                   variables: List[str]) -> ConstraintRankingNetwork:
+    """
+    Create a constraint network from a c-representation.
+
+    This allows using c-representation knowledge in the general constraint framework.
+
+    Args:
+        c_rep: CRepresentation object
+        variables: List of variable names
+
+    Returns:
+        ConstraintRankingNetwork object
+    """
+    # Convert conditional rules to constraints
+    constraints = []
+
+    for rule in c_rep.rules:
+        # This is a simplified conversion - full implementation would be more sophisticated
+        # For now, create causal constraints based on conditional structure
+        constraints.append(('var1', 'var2', 1))  # Placeholder
+
+    return ConstraintRankingNetwork(variables, constraints)

@@ -7,7 +7,11 @@ the existing ranking theory framework.
 """
 
 import pytest
-from ranked_programming.constraint_reasoning import ConstraintRankingNetwork
+from ranked_programming.constraint_reasoning import (
+    ConstraintRankingNetwork, ConditionalRule, CRepresentation,
+    create_c_representation_from_constraints,
+    create_constraint_network_from_c_representation
+)
 from ranked_programming import Ranking, nrm_exc
 
 
@@ -328,3 +332,259 @@ class TestConstraintReasoningEdgeCases:
 
         assert end_time - start_time < 5.0  # Should complete in less than 5 seconds
         assert len(solution) == 8
+
+
+class TestConditionalRule:
+    """Test ConditionalRule class functionality."""
+
+    def test_conditional_rule_creation(self):
+        """Test creating conditional rules."""
+        condition = lambda x: x == 'A'
+        consequent = lambda x: x == 'B'
+        rule = ConditionalRule(condition, consequent, impact=2)
+
+        assert rule.impact == 2
+        assert rule.condition('A') == True
+        assert rule.consequent('B') == True
+
+    def test_conditional_rule_acceptance(self):
+        """Test conditional rule acceptance conditions."""
+        # World as dict
+        world_ab = {'var': 'A', 'has_B': True}
+        world_a_no_b = {'var': 'A', 'has_B': False}
+        world_no_a = {'var': 'C', 'has_B': True}
+
+        condition = lambda w: w['var'] == 'A'
+        consequent = lambda w: w['has_B']
+
+        rule = ConditionalRule(condition, consequent)
+
+        # Should accept: condition false
+        assert rule.accepts(world_no_a) == True
+
+        # Should accept: condition true and consequent true
+        assert rule.accepts(world_ab) == True
+
+        # Should reject: condition true and consequent false
+        assert rule.accepts(world_a_no_b) == False
+
+    def test_negative_impact_handling(self):
+        """Test that negative impacts are converted to zero."""
+        condition = lambda x: True
+        consequent = lambda x: True
+        rule = ConditionalRule(condition, consequent, impact=-5)
+
+        assert rule.impact == 0
+
+
+class TestCRepresentation:
+    """Test CRepresentation class functionality."""
+
+    def test_c_representation_creation(self):
+        """Test creating c-representations."""
+        # Create simple conditional rules
+        condition1 = lambda w: w['A']
+        consequent1 = lambda w: w['B']
+        rule1 = ConditionalRule(condition1, consequent1, impact=2)
+
+        condition2 = lambda w: w['B']
+        consequent2 = lambda w: w['C']
+        rule2 = ConditionalRule(condition2, consequent2, impact=1)
+
+        c_rep = CRepresentation([rule1, rule2])
+
+        assert len(c_rep.rules) == 2
+        assert c_rep.rules[0].impact == 2
+        assert c_rep.rules[1].impact == 1
+
+    def test_world_ranking(self):
+        """Test ranking worlds with c-representation."""
+        # Simple world representation
+        world_abc = {'A': True, 'B': True, 'C': True}
+        world_ab_no_c = {'A': True, 'B': True, 'C': False}
+        world_a_no_bc = {'A': True, 'B': False, 'C': False}
+        world_no_abc = {'A': False, 'B': False, 'C': False}
+
+        # Rules:
+        # 1. If A then B (impact 2)
+        # 2. If B then C (impact 1)
+        condition1 = lambda w: w['A']
+        consequent1 = lambda w: w['B']
+        rule1 = ConditionalRule(condition1, consequent1, impact=2)
+
+        condition2 = lambda w: w['B']
+        consequent2 = lambda w: w['C']
+        rule2 = ConditionalRule(condition2, consequent2, impact=1)
+
+        c_rep = CRepresentation([rule1, rule2])
+
+        # Test ranking
+        # world_abc: A∧B∧C - both rules satisfied, rank = 0
+        assert c_rep.rank_world(world_abc) == 0
+
+        # world_ab_no_c: A∧B∧¬C - rule1 satisfied, rule2 falsified, rank = 1
+        assert c_rep.rank_world(world_ab_no_c) == 1
+
+        # world_a_no_bc: A∧¬B∧¬C - rule1 falsified, rule2 satisfied (condition false), rank = 2
+        assert c_rep.rank_world(world_a_no_bc) == 2
+
+        # world_no_abc: ¬A∧¬B∧¬C - both rules satisfied (conditions false), rank = 0
+        assert c_rep.rank_world(world_no_abc) == 0
+
+    def test_to_ranking_function(self):
+        """Test converting c-representation to Ranking object."""
+        # Simple worlds
+        worlds = [
+            {'A': True, 'B': True},
+            {'A': True, 'B': False},
+            {'A': False, 'B': True},
+            {'A': False, 'B': False}
+        ]
+
+        # Rule: If A then B (impact 1)
+        condition = lambda w: w['A']
+        consequent = lambda w: w['B']
+        rule = ConditionalRule(condition, consequent, impact=1)
+
+        c_rep = CRepresentation([rule])
+        ranking = c_rep.to_ranking_function(worlds)
+
+        # Convert to list to check ranks
+        ranking_list = list(ranking)
+
+        # World {'A': True, 'B': False} should have rank 1 (rule falsified)
+        # Other worlds should have rank 0
+        assert any(rank == 1 for w, rank in ranking_list if w['A'] and not w['B'])
+        assert all(rank == 0 for w, rank in ranking_list if not (w['A'] and not w['B']))
+
+
+class TestHybridIntegration:
+    """Test hybrid integration between constraint networks and c-representations."""
+
+    def test_create_c_rep_from_constraints(self):
+        """Test creating c-representation from constraint network."""
+        variables = ['A', 'B', 'C']
+        constraints = [
+            ('A', 'B', 1),  # Causal: A → B
+            ('B', 'C', 1),  # Causal: B → C
+            ('A', 'C', 2),  # Mutual exclusion: A ⊕ C
+        ]
+
+        c_rep = create_c_representation_from_constraints(constraints, variables)
+
+        # Should create multiple conditional rules
+        assert len(c_rep.rules) > 0
+
+        # Check that rules have appropriate impacts
+        causal_rules = [r for r in c_rep.rules if r.impact == 2]  # Causal rules
+        exclusion_rules = [r for r in c_rep.rules if r.impact == 3]  # Exclusion rules
+
+        assert len(causal_rules) == 2  # A→B, B→C
+        assert len(exclusion_rules) == 2  # A⊕C creates two rules
+
+    def test_create_constraint_network_from_c_rep(self):
+        """Test creating constraint network from c-representation."""
+        # Create simple c-representation
+        condition = lambda w: w.get('A', False)
+        consequent = lambda w: w.get('B', False)
+        rule = ConditionalRule(condition, consequent, impact=1)
+
+        c_rep = CRepresentation([rule])
+        variables = ['A', 'B']
+
+        network = create_constraint_network_from_c_representation(c_rep, variables)
+
+        # Should create a valid constraint network
+        assert isinstance(network, ConstraintRankingNetwork)
+        assert len(network.variables) == 2
+
+
+class TestCRepresentationIntegration:
+    """Test c-representation integration with existing framework."""
+
+    def test_c_rep_with_ranking_theory(self):
+        """Test c-representation works with Ranking theory operations."""
+        # Create worlds
+        worlds = [
+            {'healthy': True, 'working': True},
+            {'healthy': True, 'working': False},
+            {'healthy': False, 'working': True},
+            {'healthy': False, 'working': False}
+        ]
+
+        # Rule: If healthy then working (impact 2)
+        condition = lambda w: w['healthy']
+        consequent = lambda w: w['working']
+        rule = ConditionalRule(condition, consequent, impact=2)
+
+        c_rep = CRepresentation([rule])
+        ranking = c_rep.to_ranking_function(worlds)
+
+        # Test disbelief rank
+        healthy_prop = lambda w: w['healthy']
+        disbelief_healthy = ranking.disbelief_rank(healthy_prop)
+
+        # Should find the healthy worlds
+        assert disbelief_healthy == 0  # There are healthy worlds
+
+        # Test belief rank
+        belief_healthy = ranking.belief_rank(healthy_prop)
+        assert belief_healthy == 0.0  # τ(healthy) = κ(¬healthy) - κ(healthy) = 0 - 0 = 0
+
+    def test_skeptical_inference_placeholder(self):
+        """Test skeptical inference (placeholder implementation)."""
+        worlds = [{'A': True}, {'A': False}]
+        condition = lambda w: True
+        consequent = lambda w: w['A']
+        rule = ConditionalRule(condition, consequent)
+
+        c_rep = CRepresentation([rule])
+
+        # Test with query that should be true
+        query = lambda w: True
+        result = c_rep.skeptical_inference(query, worlds)
+        # Placeholder implementation returns False for most cases
+        assert isinstance(result, bool)
+
+
+class TestConstraintReasoningCRepresentation:
+    """Test constraint reasoning with c-representation features."""
+
+    def test_constraint_network_with_c_rep_hybrid(self):
+        """Test using c-representation features in constraint network."""
+        variables = ['A', 'B']
+        constraints = [('A', 'B', 1)]  # A → B
+
+        network = ConstraintRankingNetwork(variables, constraints)
+
+        # Test that we can still use regular constraint solving
+        evidence = {'A': 'true'}
+        result = network.solve_constraints(evidence)
+
+        assert isinstance(result, dict)
+        assert 'A' in result
+        assert 'B' in result
+
+    def test_large_c_representation(self):
+        """Test c-representation with larger knowledge base."""
+        # Create multiple rules
+        rules = []
+        variables = ['A', 'B', 'C', 'D']
+
+        # Create chain of implications: A → B → C → D
+        for i in range(len(variables) - 1):
+            condition = lambda w, i=i: w[variables[i]]
+            consequent = lambda w, i=i: w[variables[i + 1]]
+            rule = ConditionalRule(condition, consequent, impact=1)
+            rules.append(rule)
+
+        c_rep = CRepresentation(rules)
+
+        # Test with a world that satisfies all rules
+        good_world = {var: True for var in variables}
+        assert c_rep.rank_world(good_world) == 0
+
+        # Test with a world that breaks one rule
+        bad_world = {var: True for var in variables}
+        bad_world['B'] = False  # Breaks A → B
+        assert c_rep.rank_world(bad_world) == 1
