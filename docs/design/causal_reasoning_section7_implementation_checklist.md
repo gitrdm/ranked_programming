@@ -19,9 +19,10 @@ Progress summary (2025-09-04)
 - Graph queries added: parents/children/ancestors/descendants with Sphinx-friendly docstrings.
 - M1 baseline implemented: stable reason-relations (`is_cause`) and `total_effect` under surgery.
 - M2 implemented: ranked CI (`ranked_ci`) and PC skeleton (`pc_skeleton`) with v-structure orientation.
+- M3 baseline implemented: minimal repairs (`MinimalRepairSolver`) and root-cause chains (`root_cause_chain`).
 - Exports added under `ranked_programming.causal`.
-- Unit tests added: `tests/causal/test_srm.py`, `tests/causal/test_causation_v2.py`, `tests/causal/test_ranked_pc.py`.
-- Full suite passing: 200 tests.
+- Unit tests added: `tests/causal/test_srm.py`, `tests/causal/test_causation_v2.py`, `tests/causal/test_ranked_pc.py`, `tests/causal/test_explanations.py`.
+- Full suite passing: 202 tests.
 
 ## M0 — Structural Ranking Model (SRM) + Surgery
 
@@ -106,13 +107,13 @@ Status: Completed 2025-09-04 (skeleton + v-structures)
 ## M3 — Explanations: Minimal Repair + Root-Cause Chains
 
 Steps
-1) `MinimalRepairSolver` (strategy pattern)
-   - Strategies: `ucs` (incremental search), `cp-sat`, `maxsat`, `asp`
+1) `MinimalRepairSolver` (baseline exact enumeration)
    - Return all minimal sets up to size bound; de-dup supersets
-2) `root_cause_chain(world, target, graph, srm)`
-   - Trace from repairs to target through oriented graph
-   - Optional inclusion of internal nodes (user-provided)
-3) Per-world counterfactual proof (apply `do` and verify target flips)
+   - Solver backends (ucs/cp-sat/maxsat/asp) planned in M5
+2) `root_cause_chain(srm, repair_set, target)`
+   - Trace from repairs to target through SRM DAG
+   - Optional internal nodes (planned)
+3) Per-world counterfactual proof (planned)
 
 Artifacts
 - `src/ranked_programming/causal/explanations.py`
@@ -123,7 +124,11 @@ Tests
 - Chains narrate via provided l1/l2 when present; counterfactual checks pass
 
 DoD
-- Explanations produce minimal repairs and valid chain proofs
+- Baseline: minimal repairs and DAG chains produced; tests green
+
+Status: Completed baseline 2025-09-04
+- Code: `src/ranked_programming/causal/explanations.py`
+- Tests: `tests/causal/test_explanations.py` (PASS); full suite 202 PASS
 
 ## M4 — Identification: Backdoor/Frontdoor (Rank Analogues)
 

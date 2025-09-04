@@ -53,7 +53,12 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
   - PC skeleton discovery using CI up to k, storing separating sets, and v-structure orientation.
   - Tests cover chain, fork, collider using noisy link mechanisms to ensure faithfulness.
 
-- Test suite passing: 200 tests.
+- Implemented M3 baseline (explanations):
+  - Minimal repair sets via exact enumeration baseline; SRM surgery to verify fixes.
+  - Root-cause chains traced along SRM DAG.
+  - Tests cover chain graph minimal repairs and path narration.
+
+- Test suite passing: 202 tests.
 
 Next milestones: M1 (stable reason-relations), M2 (ranked CI + PC skeleton), as outlined below.
 
