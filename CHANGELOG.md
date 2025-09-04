@@ -29,4 +29,21 @@ All notable changes to this project for the `code-doc-cleanup` branch are docume
 
 ---
 
+## [2.1.0] - 2025-09-04
+
+### Added
+- Causal reasoning v2 aligned with Section 7: Structural Ranking Models (SRM) with surgery (`do()`), stable reasons (causation), and total effects in rank space.
+- Ranked conditional independence tests and PC-style discovery with v-structures and Meek R1/R2 orientation.
+- Identification utilities: backdoor/frontdoor admissibility and effect estimation in ranks.
+- Explanations: minimal repairs (enumeration; optional CP-SAT backend) and root-cause chain export (DOT).
+- New examples: `examples/causal_boolean_circuit_srm.py`, `examples/causal_srm_identification_demo.py`.
+- Optional extras in `pyproject.toml` for solver backends: `cp-sat`, `maxsat`, `asp`, `z3`.
+
+### Changed
+- Documentation: new Section 7 design doc and checklist; expanded causal tutorial; examples README updates.
+- Belief propagation and conditionalization docs clarified; README expanded substantially.
+
+### Notes
+- Remaining gaps: Meek R3/R4, FCI/PAG, c-representations/SMT, measurement/IC axioms. These are non-breaking and planned for future minor releases.
+
 This changelog follows the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) principles.
