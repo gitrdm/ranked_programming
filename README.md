@@ -140,35 +140,62 @@ kappa_B_given_A = ranking.conditional_disbelief(
 - `Shenoy's pointwise addition` - Mathematical foundation for combining rankings
 - `marginalize(variable)` - Extract marginal distributions from networks
 
-## Bayesian-Ranking Bridge
+## Bayesian↔Ranking Bridge (intuition)
 
-For users familiar with Bayesian probabilities, here is a reasonable mapping between Bayesian posterior probabilities and Ranked Programming disbelief ranks (κ). 
-Ranks can go from 0 to +inf, but using an assumption that a unit of evidence has a likelihood ratio of 2 per evidence unit (grounded in information theory where 
-1 bit = LR = 2), the table shows that ranks between 1 and 12 can cover a very large portion of the "belief" spectrum. 
+If you think in probabilities but want the intuition for ranks, a principled bridge is to
+use log-odds “bits” as evidence units. With base 2 (one bit per unit):
 
-### Probability to Disbelief Rank Mapping
+- From probability to a rank-like measure: k ≈ log2(p/(1−p))
+- From a rank-like measure to probability: p ≈ 1 / (1 + 2^(−k))
 
-| Bayesian Probability | Disbelief Rank (κ) | Confidence Level |
-|---------------------|-------------------|------------------|
-| 0.99 | 0 | Complete Belief |
-| 0.95 | 1 | Very Strong |
-| 0.90 | 2 | Strong |
-| 0.80 | 3 | Moderate |
-| 0.70 | 4 | Weak |
-| 0.60 | 5 | Very Weak |
-| 0.50 | 6 | Complete Uncertainty |
-| 0.40 | 7 | Weak Disbelief |
-| 0.30 | 8 | Moderate Disbelief |
-| 0.20 | 9 | Strong Disbelief |
-| 0.10 | 10 | Very Strong Disbelief |
-| 0.05 | 11 | Extreme Disbelief |
-| 0.01 | 12 | Complete Disbelief |
+Interpretation:
+- k=0 corresponds to p=50% (neutral). Each +1 in k is “one more bit” in favor (LR×2).
+- A compact working range 0..10 already spans ≈50% → 99.9%.
 
-**Assumptions:**
-- Uses threshold-based mapping from systematic analysis
-- Likelihood ratio of 2 per evidence unit (information-theoretic grounding)
-- Ordinal arithmetic: κ' = max(0, κ - ε) for evidence accumulation
-- Complete analysis available in `examples/bayesian_ranking_comprehensive_bridge.py`
+Evidence accumulation:
+- Start at k=0 (50%); after n evidence units (bits), k≈n → p≈1/(1+2^(−n)).
+- Example: 5 units → p≈1/(1+2^(−5))≈0.969 (≈97%).
+
+Alternative mapping for rare events:
+- κ ≈ −log2(p) (when p is small) gives a simple “disbelief in a rare event.”
+
+Explore these mappings in `examples/bayesian_ranking_comprehensive_bridge.py` and adjust bases
+or ranges to match your domain intuition.
+
+### At-a-glance mapping (base 2)
+
+Recommended default: one unit = one bit (LR×2). The table below maps k (bits) to p and vice versa.
+
+Bits to probability
+
+| k (bits) | p ≈ 1 / (1 + 2^−k) |
+|----------|----------------------|
+| 0 | 50.0% |
+| 1 | 66.7% |
+| 2 | 80.0% |
+| 3 | 88.9% |
+| 4 | 94.1% |
+| 5 | 97.0% |
+| 6 | 98.5% |
+| 7 | 99.2% |
+| 8 | 99.6% |
+| 9 | 99.8% |
+| 10 | 99.9% |
+
+Selected probabilities to bits
+
+| p | k ≈ log2(p/(1−p)) |
+|----|--------------------|
+| 0.60 | 0.6 |
+| 0.70 | 1.2 |
+| 0.80 | 2.0 |
+| 0.90 | 3.2 |
+| 0.95 | 4.3 |
+| 0.99 | 6.6 |
+
+Notes
+- Round k to taste (nearest int for quick classification). For example, 0.99 → k≈7.
+- Change the base if you want a different “unit of evidence” than a factor of 2.
 
 ## Causal Reasoning
 

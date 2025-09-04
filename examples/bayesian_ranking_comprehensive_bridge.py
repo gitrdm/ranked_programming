@@ -1,29 +1,41 @@
 #!/usr/bin/env python3
 """
-Bayesian-Ranking Programming Bridge: Comprehensive Analysis
-==========================================================
+Bayesian↔Ranking Bridge (Exploration Toolkit)
+============================================
 
-This file is not directly related to the Ranked Programming Library in that
-it does not demonstrate any of the library's specific features or functions.
-Instead it is a standalone file that compares bayesian priors with
-ordinal disbelief ranks so that people not familar with Ranked Programming
-can get a better feel for what ranks mean.
+Purpose
+-------
+This standalone example helps users build intuition for how Bayesian probabilities
+relate to Ranking Theory ranks (κ), and lets you explore different mapping
+assumptions. It does not execute the library’s ranking combinators; instead it
+provides small mathematical helpers and demos.
 
-This file consolidates the essential code and explanations for bridging
-Bayesian probability theory with ranked programming's ordinal disbelief ranks.
+What you can do here
+--------------------
+- Use a recommended default mapping where one rank unit ≈ one bit of evidence
+    (likelihood ratio ×2 per unit). This yields a compact, intuitive working range:
+    0..10 covers 50% → ~99.9%.
+- Switch to alternative mappings to see how choices affect the “feel” of ranks.
+    For rare events, a κ≈−log_b(p) style approximation may be more intuitive.
 
-Key Components:
-1. Bayesian-Ranking Bridge Table: Maps probabilities to disbelief ranks
-2. Evidence Accumulation: Shows how evidence transforms uncertainty
-3. Factor of 2 Justification: Why LR=2^evidence_units is meaningful
-4. Systematic Approaches: Different methods for choosing disbelief ranks
+Core helpers
+------------
+- Log-odds bit mapping (recommended default):
+    k_bits(p) ≈ log_b(p/(1−p)), with b=2 by default.
+    p(k_bits) = 1 / (1 + b^(−k_bits)).
+- Kappa-style (rare-event) mapping:
+    κ(p) ≈ round(−log_b(p)) when p is small (disbelief of event).
+    p(κ) ≈ b^(−κ).
 
-Author: Generated for ranked programming analysis
+Use this file to experiment with ranges (e.g., 0..10 vs 0..12), evidence factors
+(LR per unit), and table presentations so new users can get a “feel” for ranks.
+
+Author: Ranked Programming examples
 Date: September 2025
 """
 
 import math
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Callable, Optional
 
 
 def bayesian_update(prior: float, likelihood_ratio: float) -> float:
@@ -54,14 +66,95 @@ def ranking_update(disbelief_rank: int, evidence_strength: int) -> int:
     return max(0, disbelief_rank - evidence_strength)
 
 
-def generate_bridge_table() -> List[Dict]:
-    """
-    Generate the comprehensive Bayesian-Ranking bridge table.
+def log_odds_bits_from_p(p: float, base: float = 2.0) -> float:
+    """Return log-base odds bits: k_bits = log_b(p/(1-p)).
 
-    Maps Bayesian probabilities to equivalent ranking disbelief ranks.
-    Shows how different prior probabilities correspond to different
-    levels of initial disbelief.
+    Recommended default mapping unit: one bit (base=2).
+    Monotone: higher p → higher k_bits; k_bits=0 at p=0.5.
     """
+    if p <= 0.0:
+        return float('-inf')
+    if p >= 1.0:
+        return float('inf')
+    odds = p / (1.0 - p)
+    return math.log(odds, base)
+
+
+def p_from_log_odds_bits(k_bits: float, base: float = 2.0) -> float:
+    """Inverse of log_odds_bits_from_p: p = 1 / (1 + b^(−k_bits))."""
+    return 1.0 / (1.0 + (base ** (-k_bits)))
+
+
+def kappa_from_p_rare_event(p: float, base: float = 2.0) -> float:
+    """Approximate κ for rare event disbelief: κ ≈ −log_b(p).
+
+    Useful when p is small and κ models disbelief in the event.
+    Not ideal near 50% or high p.
+    """
+    if p <= 0.0:
+        return float('inf')
+    if p >= 1.0:
+        return 0.0
+    return -math.log(p, base)
+
+
+def p_from_kappa_rare_event(kappa: float, base: float = 2.0) -> float:
+    """Inverse of kappa_from_p_rare_event: p ≈ b^(−κ)."""
+    if math.isinf(kappa):
+        return 0.0
+    return base ** (-kappa)
+
+
+def generate_bridge_table(
+    mapping: str = "log_odds_bits",
+    base: float = 2.0,
+    sample_probs: Optional[List[float]] = None,
+    round_to: Optional[int] = 0,
+) -> List[Dict]:
+    """Generate a mapping table under a chosen assumption.
+
+    Args:
+        mapping: 'log_odds_bits' (default) or 'rare_event_kappa'.
+        base: evidence base (2 → one bit per unit).
+        sample_probs: probabilities to include; default uses canonical set.
+        round_to: if not None, round displayed ranks to this many decimals
+                  (0 for integers), otherwise show raw floats.
+
+    Returns: list of rows for display or further processing.
+    """
+    print("\n🔄 GENERATING BAYESIAN↔RANKING BRIDGE TABLE")
+    print("=" * 60)
+
+    if sample_probs is None:
+        sample_probs = [
+            0.99, 0.95, 0.90, 0.80, 0.70,
+            0.60, 0.50, 0.40, 0.30, 0.20,
+            0.10, 0.05, 0.01,
+        ]
+
+    print(f"Mapping: {mapping} (base={base})")
+    print("Bayesian Probability ↔ Rank-like Measure")
+    print("-" * 50)
+
+    rows: List[Dict] = []
+    for p in sample_probs:
+        if mapping == "log_odds_bits":
+            k = log_odds_bits_from_p(p, base)
+        elif mapping == "rare_event_kappa":
+            k = kappa_from_p_rare_event(p, base)
+        else:
+            raise ValueError("Unknown mapping")
+
+        k_disp = round(k, round_to) if round_to is not None and math.isfinite(k) else k
+        print(f"{p:5.2%} → k={k_disp}")
+        rows.append({
+            'probability': p,
+            'rank_like': k,
+            'mapping': mapping,
+            'base': base,
+        })
+
+    return rows
     print("🔄 GENERATING BAYESIAN-RANKING BRIDGE TABLE")
     print("=" * 60)
 
@@ -106,7 +199,7 @@ def demonstrate_evidence_accumulation():
     Demonstrate how evidence accumulation works in both frameworks.
     Shows the transformation from 50% prior to high confidence with 5 evidence units.
     """
-    print("\n📊 EVIDENCE ACCUMULATION DEMONSTRATION")
+    print("\n📊 EVIDENCE ACCUMULATION DEMONSTRATION (LR×2 per unit)")
     print("=" * 60)
 
     # Starting conditions
@@ -114,8 +207,8 @@ def demonstrate_evidence_accumulation():
     initial_rank = 6     # Complete uncertainty in ranking terms
     evidence_units = 5
 
-    print("Starting from 50% prior probability (complete uncertainty)")
-    print("Ranking equivalent: κ = 6 (complete disbelief)")
+    print("Starting from 50% prior probability (neutral log-odds = 0)")
+    print("Recommended working range: 0..10 units spans 50% → ~99.9%")
     print()
 
     # Bayesian accumulation
@@ -123,7 +216,6 @@ def demonstrate_evidence_accumulation():
     print("Evidence | Likelihood Ratio | Posterior Probability")
     print("-" * 50)
 
-    current_prob = initial_prior
     for i in range(evidence_units + 1):
         lr = 2 ** i
         posterior = bayesian_update(initial_prior, lr)
@@ -135,33 +227,19 @@ def demonstrate_evidence_accumulation():
     print("Evidence | Disbelief Rank | Confidence Level")
     print("-" * 50)
 
-    current_rank = initial_rank
+    # Log-odds bits view: units add linearly in bits
+    print()
+    print("LOG-ODDS BITS (k_bits) with base=2:")
+    print("Evidence | k_bits | Implied P")
+    print("-" * 40)
     for i in range(evidence_units + 1):
-        confidence_levels = {
-            0: "Complete Belief",
-            1: "Very Strong",
-            2: "Strong",
-            3: "Moderate",
-            4: "Weak",
-            5: "Very Weak",
-            6: "Complete Uncertainty",
-            7: "Weak Disbelief",
-            8: "Moderate Disbelief",
-            9: "Strong Disbelief",
-            10: "Very Strong Disbelief",
-            11: "Extreme Disbelief",
-            12: "Complete Disbelief"
-        }
-        level = confidence_levels.get(current_rank, "Unknown")
+        p = bayesian_update(0.5, 2 ** i)
+        k_bits = log_odds_bits_from_p(p, 2.0)
         status = "→" if i == evidence_units else "  "
-        print(f"{i:2d}       | {current_rank:2d}            | {level:<18} {status}")
-        if i < evidence_units:
-            current_rank = ranking_update(current_rank, 1)
+        print(f"{i:2d}       | {int(round(k_bits)):6d} | {p:5.1%} {status}")
 
     print()
-    print("🎯 RESULT: 5 evidence units transform 50% uncertainty to:")
-    print("   Bayesian: 97.0% posterior probability")
-    print("   Ranking: κ = 1 (very strong belief)")
+    print("🎯 RESULT: 5 evidence units transform 50% to ~97% (k_bits≈5).")
 
 
 def explain_factor_of_two():
@@ -252,12 +330,12 @@ def demonstrate_systematic_approaches():
     print("\n🎯 SYSTEMATIC APPROACHES FOR CHOOSING DISBELIEF RANKS")
     print("=" * 60)
 
-    print("Different methods to map probabilities to integer disbelief ranks:")
+    print("Different methods to map probabilities to rank-like measures:")
     print()
 
     # Method 1: Threshold-based
     print("📊 METHOD 1: THRESHOLD-BASED MAPPING")
-    thresholds = [
+    thresholds = [  # pedagogical thresholds (optional)
         (0.99, 0, "Complete Belief"),
         (0.95, 1, "Very Strong"),
         (0.90, 2, "Strong"),
