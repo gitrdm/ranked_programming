@@ -49,7 +49,91 @@ class StructuralRankingModel:
         self._order = order
 
     def variables(self) -> List[str]:
+        """Return variable names in a valid topological order.
+
+        Returns
+        -------
+        list[str]
+            Variable names in topological order (parents before children).
+        """
         return list(self._order)
+
+    # --- Graph queries ---------------------------------------------------
+    def parents_of(self, name: str) -> Tuple[str, ...]:
+        """Return direct parents of a variable.
+
+        Parameters
+        ----------
+        name : str
+            Variable name.
+
+        Returns
+        -------
+        tuple[str, ...]
+            Parent variable names.
+        """
+        return self._vars[name].parents
+
+    def children_of(self, name: str) -> Tuple[str, ...]:
+        """Return direct children of a variable.
+
+        Parameters
+        ----------
+        name : str
+            Variable name.
+
+        Returns
+        -------
+        tuple[str, ...]
+            Children variable names.
+        """
+        return tuple(self._adj.get(name, ()))
+
+    def ancestors_of(self, name: str) -> Tuple[str, ...]:
+        """Return all ancestors of a variable (transitive closure of parents).
+
+        Parameters
+        ----------
+        name : str
+            Variable name.
+
+        Returns
+        -------
+        tuple[str, ...]
+            All ancestor variable names (excluding `name`).
+        """
+        ancestors: set[str] = set()
+        stack = list(self._vars[name].parents)
+        while stack:
+            p = stack.pop()
+            if p in ancestors:
+                continue
+            ancestors.add(p)
+            stack.extend(self._vars[p].parents)
+        return tuple(sorted(ancestors))
+
+    def descendants_of(self, name: str) -> Tuple[str, ...]:
+        """Return all descendants of a variable (transitive closure of children).
+
+        Parameters
+        ----------
+        name : str
+            Variable name.
+
+        Returns
+        -------
+        tuple[str, ...]
+            All descendant variable names (excluding `name`).
+        """
+        descendants: set[str] = set()
+        stack = list(self._adj.get(name, ()))
+        while stack:
+            c = stack.pop()
+            if c in descendants:
+                continue
+            descendants.add(c)
+            stack.extend(self._adj.get(c, ()))
+        return tuple(sorted(descendants))
 
     def to_ranking(self) -> Ranking:
         """Compose mechanisms in topological order into a joint Ranking over assignments (dict)."""

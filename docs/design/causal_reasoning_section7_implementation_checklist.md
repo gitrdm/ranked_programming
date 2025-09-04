@@ -16,9 +16,11 @@ Conventions
 
 Progress summary (2025-09-04)
 - M0 implemented: `StructuralRankingModel` with surgery-based `do()`; internal DAG validation + topological order (no external deps).
+- Graph queries added: parents/children/ancestors/descendants with Sphinx-friendly docstrings.
+- M1 baseline implemented: stable reason-relations (`is_cause`) and `total_effect` under surgery.
 - Exports added under `ranked_programming.causal`.
-- Unit tests added in `tests/causal/test_srm.py` (topo, joint ranking, surgery, cycle detection).
-- Full suite passing: 194 tests.
+- Unit tests added: `tests/causal/test_srm.py`, `tests/causal/test_causation_v2.py`.
+- Full suite passing: 197 tests.
 
 ## M0 — Structural Ranking Model (SRM) + Surgery
 
@@ -53,25 +55,28 @@ Status: Completed 2025-09-04
 ## M1 — Causation: Stable Reason-Relations + Effects
 
 Steps
-1) Implement `CausalReasonerV2.is_cause(A,B,srm,z)`
-   - Enumerate/sampling of admissible contexts (non-descendants of A)
-   - Compare τ(B|A,C) vs τ(B|¬A,C); record minimal margin
-   - Early exit on violation
+1) Implement `is_cause(A,B,srm,z)`
+   - Contexts: assignments over variables excluding A and its descendants; ordered by plausibility (κ) from observational joint ranking
+   - Compute τ via κ differences on observational ranking; record minimal margin; early exit on violation
 2) Effects utilities
-   - `effect_under_surgery(A,B,a,a',srm)` compare τ under `do`
-   - `conditional_effect(A,B|Z=z)` using filter/conditioning compatibly
-3) Config thresholds via settings/env
+   - `total_effect(A,B,a,a')` compare τ(B) under `do(A=a)` vs `do(A=a')`
+   - `conditional_effect(A,B|Z=z)` using filtering/conditioning (planned)
+3) Config thresholds via settings/env (planned)
 
 Artifacts
 - `src/ranked_programming/causal/causal_v2.py`
 - Tests: `tests/causal/test_causation_v2.py`
 
 Tests
-- Synthetic cases where cause holds/fails; enumerate contexts on small graphs
-- Screened vs unshielded boolean circuit; margins consistent
+- Unshielded chain A→B→C shows A causes C; minimal strength recorded
+- Fork and screening notes; additional conditioning tests planned
 
 DoD
-- Boolean causation judgments match expectations across scenarios; tests green
+- Baseline stable reason-relations and total effect implemented; tests green
+
+Status: In progress (baseline landed 2025-09-04)
+- Code: `src/ranked_programming/causal/causal_v2.py`
+- Tests: `tests/causal/test_causation_v2.py` (PASS); full suite 197 PASS
 
 ## M2 — Ranked CI + PC/FCI Skeleton
 

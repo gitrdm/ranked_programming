@@ -41,7 +41,14 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
   - `to_ranking()` composes mechanisms via `rlet_star` to produce a joint Ranking over assignments.
   - `do(interventions)` performs surgery by overriding mechanisms with constants and clearing parents for intervened variables.
   - Exports available from `ranked_programming.causal`.
-  - Tests cover topo order, composition, surgery, and cycle detection; full suite passing (194 tests).
+  - Tests cover topo order, composition, surgery, and cycle detection.
+
+- Implemented M1 baseline (causation and effects):
+  - Stable reason-relations `is_cause(A,B,srm,z,max_contexts)` with context enumeration by plausibility and τ via κ differences.
+  - `total_effect(A,B,srm,a,a_alt)` via surgery do-operator.
+  - Added graph query helpers to SRM for admissible context definition.
+
+- Test suite passing: 197 tests.
 
 Next milestones: M1 (stable reason-relations), M2 (ranked CI + PC skeleton), as outlined below.
 
