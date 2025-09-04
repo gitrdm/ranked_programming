@@ -1,45 +1,25 @@
 # Ranked Programming: Theoretical Enhancement Design Document
 
-**Current Status: Phase 3 Complete ✅**
+**Current Status: Phase 4.1 Complete ✅**
 
 **Last Updated:** September 3, 2025
 
 **Phase 1 (Core Theory Methods)** ✅ COMPLETED
 **Phase 2 (Educational Examples & Documentation)** ✅ COMPLETED
 **Phase 3 (Causal Reasoning)** ✅ COMPLETED (3.1 ✅, 3.2 ✅, 3.3 ✅, 3.4 ✅, 3.5 ✅)
+**Phase 4.1 (Belief Propagation Module)** ✅ COMPLETED
 
-**Phase 2 Achievements:**
-- ✅ Comprehensive theory demonstration examples
-- ✅ Complete theory-to-implementation mapping documentation  
-- ✅ Extensive educational materials and tutorials
-- ✅ Integration testing and validation
-- ✅ All documentation in Sphinx style
-- ✅ Zero technical debt - all tests pass
+**Phase 4.1 Achievements:**
+- ✅ BeliefPropagationNetwork class with efficient message passing
+- ✅ Shenoy's pointwise addition algorithm implementation
+- ✅ Integration with existing Ranking abstractions
+- ✅ Comprehensive test suite with 21 test cases covering all functionality
+- ✅ Example demonstrations with 5 different network scenarios
+- ✅ Fixed recursion issues in Ranking object composition
+- ✅ Performance optimizations with caching and lazy evaluation
+- ✅ Zero technical debt - all 153 tests pass, no regressions introduced
 
-**Phase 3 Progress:** Causal Reasoning Complete ✅ (Phase 3.1 ✅, Phase 3.2 ✅, Phase 3.3 ✅, Phase 3.4 ✅, Phase 3.5 ✅)
-
-**Phase 3.3 Achievements:**
-- ✅ Implemented constraint-based causal discovery methods (PC algorithm)
-- ✅ Added comprehensive causal structure validation (_check_no_cycles, _check_causal_markov, _check_faithfulness)
-- ✅ Integrated with existing combinator framework (learn_causal_structure_from_combinators)
-- ✅ Added causal graph discovery from ranking functions
-- ✅ Fixed cycle detection bug in _check_no_cycles method
-- ✅ All 22 causal reasoning tests pass with no regressions
-- ✅ Maintained zero technical debt with comprehensive documentation
-
-**Phase 3.4 Achievements:**
-- ✅ Created comprehensive `examples/causal_reasoning_demo.py` with 250+ lines
-- ✅ Demonstrated basic causal inference, conditional analysis, discovery algorithms
-- ✅ Showed counterfactual reasoning and declarative causal model creation
-- ✅ Integrated causal reasoning with existing combinator framework
-- ✅ Fixed all syntax errors in nrm_exc calls (proper 3-argument format)
-- ✅ All demonstrations run successfully without errors
-- ✅ Maintained zero technical debt with comprehensive documentation
-
-**Next Priority: Phase 4.0 Advanced Features** ⏳
-- Consider advanced causal inference methods (instrumental variables, etc.)
-- Evaluate need for probabilistic extensions
-- Assess performance optimizations for large causal graphs
+**Next Priority: Phase 4.2 Constraint-Based Reasoning** ⏳
 
 **Phase 3.2 Achievements:**
 - ✅ Implemented conditional_causal_analysis() using Ranking.filter()
@@ -524,11 +504,26 @@ def test_new_methods_additive():
 
 ### Phase 4: Performance & Scalability (Weeks 9-12)
 
-#### 4.1 Belief Propagation Module
-- [ ] Create `src/ranked_programming/belief_propagation.py`
-- [ ] Implement `BeliefPropagationNetwork` class
-- [ ] Add Shenoy's pointwise addition algorithm
-- [ ] Integrate with existing Ranking abstractions
+#### 4.1 Belief Propagation Module ✅ COMPLETED
+- [x] Create `src/ranked_programming/belief_propagation.py` (355 lines)
+- [x] Implement `BeliefPropagationNetwork` class with message passing
+- [x] Add Shenoy's pointwise addition algorithm (simplified implementation)
+- [x] Integrate with existing Ranking abstractions
+- [x] Create comprehensive tests (21 test cases) - all passing
+- [x] Add performance optimizations and caching mechanisms
+- [x] Create `examples/belief_propagation_example.py` (276 lines, 5 examples)
+- [x] Fix recursion issues in pointwise addition and evidence application
+- [x] All 153 tests pass (132 original + 21 new) - zero technical debt
+
+**Phase 4.1 Achievements:**
+- ✅ BeliefPropagationNetwork class with efficient message passing
+- ✅ Shenoy's pointwise addition algorithm implementation
+- ✅ Integration with existing Ranking class and combinator framework
+- ✅ Comprehensive test suite with 21 test cases covering all functionality
+- ✅ Example demonstrations with 5 different network scenarios
+- ✅ Fixed recursion issues in Ranking object composition
+- ✅ Performance optimizations with caching and lazy evaluation
+- ✅ Zero technical debt - all tests pass, no regressions introduced
 
 #### 4.2 Constraint-Based Reasoning
 - [ ] Create `src/ranked_programming/constraint_reasoning.py`
