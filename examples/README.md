@@ -33,6 +33,8 @@ This directory contains example files and demonstrations for the ranked programm
 - `*_mdl.py` - Examples with MDL (Minimum Description Length) penalties
 - `*_penalty_demo.py` - Demonstrations of different penalty algorithms
 - `example.py` - Basic usage examples
+- `causal_srm_identification_demo.py` - End-to-end SRM causal demo (backdoor/frontdoor, separating sets, minimal repairs)
+- `causal_boolean_circuit_srm.py` - SRM-based boolean circuit demo using Section 7 causal APIs
 
 ### Domain-Specific Examples
 - `boolean_circuit*.py` - Boolean circuit modeling

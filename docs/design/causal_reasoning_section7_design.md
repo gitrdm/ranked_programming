@@ -1,10 +1,18 @@
 # Section 7–Compliant Causal Reasoning (Design Doc)
+Follow-up on docs/Background/Ranking Theory Algorithmic Realization_.md
 
-Status: draft for review
+Status: draft for review (M0–M5 implemented)
 
 Owner: ranked_programming maintainers
 
 Date: 2025-09-04
+
+> Status (quick links)
+>
+> - SRM demo: `examples/causal_boolean_circuit_srm.py` (causes/effects, CI/PC, Meek R1/R2, minimal repairs, root-cause DOT, optional CP-SAT)
+> - Identification demo: `examples/causal_srm_identification_demo.py`
+> - Discovery implementation: `src/ranked_programming/causal/ranked_pc.py` (ranked CI, PC skeleton, v-structures, Meek R1/R2, `z_filter`)
+> - Tests: discovery `tests/causal/test_ranked_pc.py`, causation `tests/causal/test_causation_v2.py`, SRM `tests/causal/test_srm.py`, identification `tests/causal/test_identification.py`, explanations `tests/causal/test_explanations.py`, constraints/CP-SAT `tests/causal/test_constraints.py`, `tests/causal/test_constraints_ortools.py`
 
 ## Motivation
 
@@ -34,18 +42,71 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
 - Intervention semantics: manipulate variables by breaking incoming influences (surgery), not merely reweighting.
 - Discovery: extract causal structure from stable reason-relations; internal nodes (e.g., l1, l2) must be representable as propositions/variables.
 
+## Current status (2025-09-04)
+
+- Implemented M0 (SRM + surgery):
+  - `StructuralRankingModel` with internal DAG validation and Kahn topological order.
+  - `to_ranking()` composes mechanisms via `rlet_star` to produce a joint Ranking over assignments.
+  - `do(interventions)` performs surgery by overriding mechanisms with constants and clearing parents for intervened variables.
+  - Exports available from `ranked_programming.causal`.
+  - Tests cover topo order, composition, surgery, and cycle detection.
+
+- Implemented M1 baseline (causation and effects):
+  - Stable reason-relations `is_cause(A,B,srm,z,max_contexts)` with context enumeration by plausibility and τ via κ differences.
+  - `total_effect(A,B,srm,a,a_alt)` via surgery do-operator.
+  - Added graph query helpers to SRM for admissible context definition.
+
+- Implemented M2 (ranked CI + PC skeleton):
+  - Ranked CI predicate with symmetric τ checks under hard conditioning.
+  - PC skeleton discovery using CI up to k, storing separating sets, and v-structure orientation.
+  - Tests cover chain, fork, collider using noisy link mechanisms to ensure faithfulness.
+  - Orientation improvements: Meek rules R1 and R2 implemented (iterative propagation); R3/R4 pending.
+  - Candidate filtering: optional `z_filter` hook to prune conditioning candidates before CI tests (e.g., restrict to common neighbors or domain-pruned sets).
+
+- Implemented M3 baseline (explanations):
+  - Minimal repair sets via exact enumeration baseline; SRM surgery to verify fixes.
+  - Root-cause chains traced along SRM DAG.
+  - DOT export of root-cause graphs available in `examples/causal_boolean_circuit_srm.py`.
+  - Tests cover chain graph minimal repairs and path narration.
+
+- Implemented M4 (identification):
+  - Backdoor admissibility check via d-separation on SRM DAG; excludes descendants of treatment.
+  - Backdoor-adjusted effect using rank min-plus aggregation over Z contexts with observational κ(Z=z).
+  - Frontdoor applicability check (sufficient conditions) and frontdoor effect via mediator aggregation using interventional components produced by surgery.
+  - Tests cover backdoor/frontdoor checks and effect computations.
+
+- Implemented M5 (pluggable solver backends):
+  - Constraints module providing strategy interfaces and greedy baselines: `GreedySeparatingSetFinder`, `EnumerationMinimalRepair`, `CounterexampleFinder`.
+  - Optional CP-SAT strategies with guarded imports: `CPSATSeparatingSetFinder`, `CPSATMinimalRepair`.
+  - Extras in `pyproject.toml` for backends: `cp-sat`, `maxsat`, `asp`, `z3`. Base install remains lightweight.
+  - Tests added; CP-SAT tests skipped by default and enabled via `ORTOOLS_AVAILABLE=1`.
+
+- Test suite passing: 211 tests (CP-SAT enabled); baseline without OR-Tools: 209 passed, 2 skipped.
+
+## Remaining gaps (as of 2025-09-04)
+
+- Discovery orientation: Meek R3/R4 not yet implemented; FCI/PAG for latent confounding not available.
+- c-representations and skeptical c-inference via SMT (Z3): not implemented.
+- Constraint networks/safe covers for c-inference: not implemented.
+- Hild–Spohn rank measurement and IC axioms (IC1–IC6): not implemented.
+- Learning/prior elicitation and robustness/transfer tooling: not implemented.
+
 ## High-level architecture
 
 - Core module: `srm.py` (Structural Ranking Model)
   - Declarative model of variables, parents, mechanisms (as Ranking combinators).
-  - Generate observational `Ranking` and intervened `Ranking` via composition (`rlet`) and Shenoy BP when needed.
-- Causation module: `causal_do.py`
+  - Generate observational `Ranking` and intervened `Ranking` via composition (`rlet_star`) and Shenoy BP when needed.
+- Causation module: `causal_v2.py`
   - Stable reason-relations causation test; effect strengths; conditional/screened effects.
 - Discovery module: `ranked_pc.py`
   - Ranked CI test; PC/FCI-like skeleton adapted to ranks; edge orientation rules.
 - Explanations module: `explanations.py`
   - Minimal repair, root-cause chains, per-world proofs.
-- Integration: optional `constraints.py` to leverage SMT and/or Prolog/kanren for repair-set minimality and CI counterexamples.
+- Identification module: `identification.py`
+  - Backdoor/frontdoor criteria and rank-based effect estimators using SRM surgery and min-plus aggregation.
+- Constraints/backends module: `constraints.py`
+  - Pluggable strategies for separating set search, minimal repairs, and counterexample finding, with greedy defaults and optional CP-SAT backends.
+- Integration: optional solver backends (CP-SAT/MaxSAT/SMT/ASP) behind extras; graceful fallback when not installed.
 
 All modules depend on existing `Ranking` primitives and do not reimplement ranking engines.
 
@@ -80,11 +141,17 @@ All modules depend on existing `Ranking` primitives and do not reimplement ranki
   - `minimal_repair(world, targets: List[str], srm) -> List[Set[str]]`
   - `root_cause_chain(world, target: str, graph, srm) -> List[str]`
 
+- Identification
+  - `backdoor_admissible(A, B, Z, srm) -> bool`: checks if Z blocks all backdoor paths from A to B.
+  - `backdoor_effect(A, B, srm, z=1) -> float`: estimates the effect of A on B using backdoor adjustment with Z.
+  - `frontdoor_admissible(A, M, srm) -> bool`: checks sufficient conditions for frontdoor adjustment.
+  - `frontdoor_effect(A, M, srm) -> float`: estimates the frontdoor effect of A on its mediators.
+
 API usage is intentionally SCM-like but remains rank-native.
 
 ## Intervention semantics (surgery)
 
-- Observational generation: compose variable mechanisms with `rlet` (and `nrm_exc`) into a joint `Ranking`.
+- Observational generation: compose variable mechanisms with `rlet_star` (and `nrm_exc`) into a joint `Ranking`.
 - Surgery: for `do(X=v)`, replace X’s mechanism with a constant `Ranking(lambda: [ (v, 0) ])` (or a trivial `nrm_exc` with 0 penalty) and remove X from parents of its children during composition.
 - Implementation detail: In `to_ranking()`, build the joint generator in topological order of the graph; for intervened variables, ignore parent values when invoking the mechanism. The rest of the graph composes normally.
 - Backward-compatible path: retain legacy filter-style `_intervene` for simple demos; mark as deprecated once surgery is stable.
@@ -227,6 +294,7 @@ Backend selection can be configured via settings or environment; default to heur
 - M2 (discovery): ranked CI + PC skeleton; graph orientation; hooks for SMT/Prolog.
 - M3 (explanations): minimal repair and chain narration; per-world proofs.
 - M4 (identification): backdoor/frontdoor utilities with surgery; docs and tutorials.
+- M5 (solver backends): constraints module with pluggable strategies; CP-SAT/MaxSAT/SMT/ASP integration.
 
 ## Open questions
 

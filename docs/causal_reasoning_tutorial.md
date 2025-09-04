@@ -361,14 +361,63 @@ results = causal_network.propagate_beliefs({
 })
 ```
 
-## Conclusion
+### Using CP-SAT strategies (optional)
 
-Causal reasoning in ranked programming provides powerful tools for understanding complex systems. By combining ranking theory with causal inference methods, you can:
+When OR-Tools is installed, you can switch to CP-SAT-backed strategies for faster separating-set search and minimal repairs on larger instances.
 
-- Identify true cause-and-effect relationships
-- Understand intervention effects
-- Discover causal structure from data
-- Make counterfactual predictions
-- Avoid common causal inference pitfalls
+Install and enable:
 
-Remember that causal analysis requires careful consideration of assumptions and validation of results. Always combine multiple approaches and consider domain knowledge when interpreting causal relationships.
+```bash
+pip install -e .[cp-sat]
+# Optional: run CP-SAT tests
+ORTOOLS_AVAILABLE=1 pytest -q
+```
+
+Example usage (guarded import):
+
+```python
+try:
+    from ranked_programming.causal import (
+        CPSATSeparatingSetFinder,
+        CPSATMinimalRepair,
+        SeparatingSetRequest,
+        ranked_ci,
+        StructuralRankingModel,
+        Variable,
+    )
+    from ranked_programming.ranking_class import Ranking
+    from ranked_programming.ranking_combinators import nrm_exc
+
+    # Small chain X->Z->Y
+    X = Variable("X", (False, True), (), lambda: Ranking.from_generator(nrm_exc, False, True, 1))
+    Z = Variable("Z", (False, True), ("X",), lambda x: x)
+    Y = Variable("Y", (False, True), ("Z",), lambda z: z)
+    srm = StructuralRankingModel([X, Z, Y])
+
+    # Separating set via CP-SAT
+    z_finder = CPSATSeparatingSetFinder()
+    Zset = z_finder.find(SeparatingSetRequest("X", "Y", ["Z"], k_max=1), srm, ranked_ci)
+    print("CP-SAT separating set for X–Y:", Zset)
+
+    # Minimal repairs via CP-SAT
+    mr = CPSATMinimalRepair()
+    repairs = mr.repairs(srm, target="Y", desired_value=True, candidates=["Z", "X"], max_size=1)
+    print("CP-SAT minimal repairs for Y=True:", repairs)
+except ImportError:
+    print("Install OR-Tools: pip install -e .[cp-sat]")
+```
+
+The CP-SAT implementations minimize set sizes and iterate with no-good cuts, validating each candidate using SRM surgery semantics to keep results sound.
+
+## Backends and extras (optional)
+
+To enable solver-backed strategies (e.g., CP-SAT) for separating sets and minimal repairs:
+
+- Install extras:
+  - `pip install -e .[cp-sat]` for OR-Tools CP-SAT
+  - `pip install -e .[maxsat]` for PySAT/MaxSAT (optional)
+  - `pip install -e .[asp]` for clingo/ASP (optional)
+- Run CP-SAT tests (optional):
+  - `ORTOOLS_AVAILABLE=1 pytest -q`
+
+The library falls back to greedy strategies when optional backends are not installed. APIs are available under `ranked_programming.causal` (e.g., `CPSATSeparatingSetFinder`, `CPSATMinimalRepair`).

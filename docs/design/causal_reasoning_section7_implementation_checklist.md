@@ -12,18 +12,30 @@ Conventions
 - Branch naming: `feature/causal-v2/<phase>-<short>` (e.g., `feature/causal-v2/m0-srm`)
 - Feature flags (env or settings): `CR_USE_SURGERY`, `CR_SOLVER_BACKEND`, `CR_MAX_K`, `CR_Z_REASON`, `CR_EPS_CI`, `CR_TIMEOUT_MS`
 - Extras: `causal[cp-sat]`, `causal[maxsat]`, `causal[asp]`, `causal[z3]`
-- Graph lib: `networkx`
+- Graph lib: `networkx` (optional). SRM uses internal Kahn topo sort; external graph libs may be used later for PC/FCI and orientation.
+
+Progress summary (2025-09-04)
+- M0 implemented: `StructuralRankingModel` with surgery-based `do()`; internal DAG validation + topological order (no external deps).
+- Graph queries added: parents/children/ancestors/descendants with Sphinx-friendly docstrings.
+- M1 baseline implemented: stable reason-relations (`is_cause`) and `total_effect` under surgery.
+- M2 implemented: ranked CI (`ranked_ci`) and PC skeleton (`pc_skeleton`) with v-structure orientation.
+- M3 baseline implemented: minimal repairs (`MinimalRepairSolver`) and root-cause chains (`root_cause_chain`).
+- M4 implemented: identification (`is_backdoor_admissible`, `backdoor_adjusted_effect`, `is_frontdoor_applicable`, `frontdoor_effect`).
+- M5 implemented: constraints/backends scaffolding with greedy defaults and CP-SAT optional strategies.
+- Exports added under `ranked_programming.causal`.
+- Unit tests added: `tests/causal/test_srm.py`, `test_causation_v2.py`, `test_ranked_pc.py`, `test_explanations.py`, `test_identification.py`, `test_constraints.py`, `test_constraints_ortools.py` (skipped by default).
+- Full suite passing: 211 tests with OR-Tools enabled; baseline 209 passed, 2 skipped.
 
 ## M0 — Structural Ranking Model (SRM) + Surgery
 
 Steps
 1) Implement `StructuralRankingModel`
    - Types: Variable(name, domain, parents, mechanism)
-   - Build topological order (networkx) and validate DAG
-   - `to_ranking()`: compose mechanisms via `rlet` to joint Ranking
+   - Build topological order (internal Kahn algorithm) and validate DAG
+   - `to_ranking()`: compose mechanisms via `rlet_star` into a joint Ranking
 2) Implement surgery `do(interventions)`
-   - Override mechanisms for intervened vars (constant ranking)
-   - Ignore parents for intervened vars during composition
+   - Override mechanisms for intervened vars (constant Ranking)
+   - Ignore parents for intervened vars (cut incoming edges) during composition
 3) Keep `_intervene` in legacy API but mark as deprecated in docstrings
 
 Artifacts
@@ -40,59 +52,70 @@ DoD
 - SRM produces correct joint Ranking; surgery semantics verified on toy graphs
 - Lint/type pass; tests green
 
+Status: Completed 2025-09-04
+- Code: `src/ranked_programming/causal/srm.py`, `src/ranked_programming/causal/__init__.py`
+- Tests: `tests/causal/test_srm.py` (PASS); full suite 194 PASS
+
 ## M1 — Causation: Stable Reason-Relations + Effects
 
 Steps
-1) Implement `CausalReasonerV2.is_cause(A,B,srm,z)`
-   - Enumerate/sampling of admissible contexts (non-descendants of A)
-   - Compare τ(B|A,C) vs τ(B|¬A,C); record minimal margin
-   - Early exit on violation
+1) Implement `is_cause(A,B,srm,z)`
+   - Contexts: assignments over variables excluding A and its descendants; ordered by plausibility (κ) from observational joint ranking
+   - Compute τ via κ differences on observational ranking; record minimal margin; early exit on violation
 2) Effects utilities
-   - `effect_under_surgery(A,B,a,a',srm)` compare τ under `do`
-   - `conditional_effect(A,B|Z=z)` using filter/conditioning compatibly
-3) Config thresholds via settings/env
+   - `total_effect(A,B,a,a')` compare τ(B) under `do(A=a)` vs `do(A=a')`
+   - `conditional_effect(A,B|Z=z)` using filtering/conditioning (planned)
+3) Config thresholds via settings/env (planned)
 
 Artifacts
 - `src/ranked_programming/causal/causal_v2.py`
 - Tests: `tests/causal/test_causation_v2.py`
 
 Tests
-- Synthetic cases where cause holds/fails; enumerate contexts on small graphs
-- Screened vs unshielded boolean circuit; margins consistent
+- Unshielded chain A→B→C shows A causes C; minimal strength recorded
+- Fork and screening notes; additional conditioning tests planned
 
 DoD
-- Boolean causation judgments match expectations across scenarios; tests green
+- Baseline stable reason-relations and total effect implemented; tests green
+
+Status: In progress (baseline landed 2025-09-04)
+- Code: `src/ranked_programming/causal/causal_v2.py`
+- Tests: `tests/causal/test_causation_v2.py` (PASS); full suite 197 PASS
 
 ## M2 — Ranked CI + PC/FCI Skeleton
 
 Steps
-1) Ranked CI predicate `ci(A,B|Z)` with ε tolerance
+1) Ranked CI predicate `ranked_ci(A,B|Z)` with ε tolerance (hard conditioning)
 2) PC skeleton
    - Adjacency pruning by CI up to k
-   - Store separating sets; orient v-structures; Meek rules
-3) FCI optional partial orientation
+   - Store separating sets; orient v-structures; Meek rules (planned)
+3) FCI optional partial orientation (planned)
 
 Artifacts
 - `src/ranked_programming/causal/ranked_pc.py`
 - Tests: `tests/causal/test_ranked_pc.py`
 
 Tests
-- Recover chain, fork, collider on canonical 3–5 node graphs
-- Sensitivity to ε and k_max documented
+- Recover chain, fork, collider on canonical 3–5 node graphs with noisy links
+- Sensitivity to ε and k_max documented (planned)
 
 DoD
 - PC recovers correct skeleton/orientation on toys; API stable
 
+Status: Completed 2025-09-04 (skeleton + v-structures)
+- Code: `src/ranked_programming/causal/ranked_pc.py`
+- Tests: `tests/causal/test_ranked_pc.py` (PASS); full suite 200 PASS
+
 ## M3 — Explanations: Minimal Repair + Root-Cause Chains
 
 Steps
-1) `MinimalRepairSolver` (strategy pattern)
-   - Strategies: `ucs` (incremental search), `cp-sat`, `maxsat`, `asp`
+1) `MinimalRepairSolver` (baseline exact enumeration)
    - Return all minimal sets up to size bound; de-dup supersets
-2) `root_cause_chain(world, target, graph, srm)`
-   - Trace from repairs to target through oriented graph
-   - Optional inclusion of internal nodes (user-provided)
-3) Per-world counterfactual proof (apply `do` and verify target flips)
+   - Solver backends (ucs/cp-sat/maxsat/asp) planned in M5
+2) `root_cause_chain(srm, repair_set, target)`
+   - Trace from repairs to target through SRM DAG
+   - Optional internal nodes (planned)
+3) Per-world counterfactual proof (planned)
 
 Artifacts
 - `src/ranked_programming/causal/explanations.py`
@@ -103,7 +126,11 @@ Tests
 - Chains narrate via provided l1/l2 when present; counterfactual checks pass
 
 DoD
-- Explanations produce minimal repairs and valid chain proofs
+- Baseline: minimal repairs and DAG chains produced; tests green
+
+Status: Completed baseline 2025-09-04
+- Code: `src/ranked_programming/causal/explanations.py`
+- Tests: `tests/causal/test_explanations.py` (PASS); full suite 202 PASS
 
 ## M4 — Identification: Backdoor/Frontdoor (Rank Analogues)
 
@@ -117,27 +144,35 @@ Artifacts
 - Tests: `tests/causal/test_identification.py`
 
 Tests
-- Backdoor examples where Z blocks confounding; effect matches direct surgery in acyclic simple models
+- Backdoor: Confounded A→B with common cause U; Z={U} admissible, ∅ not. Adjusted effect computed via min-plus aggregation.
+- Frontdoor: A→M→B with confounding U→{A,B}; applicability holds; mediator aggregation returns finite τ.
 
 DoD
-- Utilities usable on discovered/assumed graphs; documented behavior
+- Utilities usable on discovered/assumed graphs; documented behavior; Sphinx docstrings in code.
+
+Status: Completed 2025-09-04
+- Code: `src/ranked_programming/causal/identification.py` (PASS)
+- Tests: `tests/causal/test_identification.py` (PASS); suite 206 PASS
 
 ## M5 — Pluggable Solver Backends
 
 Steps
-1) Interfaces: `SeparatingSetFinder`, `MinimalRepairSolver`, `CounterexampleFinder`
-2) Backends: greedy (default), CP-SAT, MaxSAT, SMT, ASP
-3) Extras, detection, timeouts, and graceful fallback
+1) Interfaces: `SeparatingSetFinder`, `MinimalRepairStrategy`, `CounterexampleFinder`
+2) Greedy defaults and optional CP-SAT implementations
+3) Extras in packaging; docs on enabling backends
 
 Artifacts
 - `src/ranked_programming/causal/constraints.py`
-- Tests: `tests/causal/test_constraints.py`
+- Tests: `tests/causal/test_constraints.py`, `tests/causal/test_constraints_ortools.py`
 
 Tests
-- Backend parity on small instances; fallback path exercised
+- Greedy strategies validate separating sets, minimal repairs, and counterexample search on toy graphs
+- CP-SAT strategies validated when `ORTOOLS_AVAILABLE=1` and `ortools` installed
 
 DoD
-- Backends configurable; defaults work without optional deps
+- Backends configurable; defaults work without optional deps; tests green/skipped appropriately
+
+Status: Completed 2025-09-04
 
 ## M6 — Docs, Tutorials, Examples
 
