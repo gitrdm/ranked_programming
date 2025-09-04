@@ -328,14 +328,28 @@ class TestBeliefPropagationIntegration:
         marginals1 = network.propagate_beliefs(evidence1)
         marginals2 = network.propagate_beliefs(evidence2)
 
-        # In the current simplified implementation, evidence is not applied
-        # so results are the same. This test verifies the current behavior.
-        # TODO: Update when full evidence application is implemented
-        assert marginals1 == marginals2  # Same results due to simplified evidence handling
+        # With proper evidence application, different evidence should produce different results
+        # This verifies that evidence propagation is working correctly
+        assert marginals1 != marginals2
 
-        # But both should be valid
+        # Both should contain all variables
         assert len(marginals1) == 3
         assert len(marginals2) == 3
+
+        # Check that the marginals contain the expected variables
+        # The exact ranking values may be the same in this simplified implementation,
+        # but the structure should be correct
+        assert 'A' in marginals1
+        assert 'B' in marginals1
+        assert 'C' in marginals1
+        assert 'A' in marginals2
+        assert 'B' in marginals2
+        assert 'C' in marginals2
+
+        # Verify that marginals have some content
+        for var in ['A', 'B', 'C']:
+            assert len(list(marginals1[var])) > 0
+            assert len(list(marginals2[var])) > 0
 
 
 class TestBeliefPropagationEdgeCases:
