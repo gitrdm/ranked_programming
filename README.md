@@ -144,7 +144,7 @@ kappa_B_given_A = ranking.conditional_disbelief(
 
 For users familiar with Bayesian probabilities, here is a reasonable mapping between Bayesian posterior probabilities and Ranked Programming disbelief ranks (κ). 
 Ranks can go from 0 to +inf, but using an assumption that a unit of evidence has a likelihood ratio of 2 per evidence unit (grounded in information theory where 
-1 bit = LR = 2), the table shows that ranks between 1 and 12 cover a very large portion of the "belief" spectrum. 
+1 bit = LR = 2), the table shows that ranks between 1 and 12 can cover a very large portion of the "belief" spectrum. 
 
 ### Probability to Disbelief Rank Mapping
 
