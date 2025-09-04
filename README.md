@@ -2,24 +2,12 @@
 
 A Python library for ranked programming based on Wolfgang Spohn's Ranking Theory. Provides combinators and utilities for reasoning about uncertainty, surprise, and ranked choices in computation using a computationally simpler alternative to probabilistic methods.
 
-**🎉 Current Status: Phase 4.3 Complete (C-Representation Framework) ✅**
-- **Version 2.0.0** - Major release with complete theoretical foundation
-- **190+ Tests** passing with zero technical debt
-- **Complete C-Representation Framework** with Kern-Isberner's formalism
-- **Hybrid Integration** combining constraint networks with c-representations
-- **Full Theoretical Foundation** with κ, τ, and conditional ranks
-- **Production-Ready** with comprehensive documentation and examples
+This package is used being used as a platform for experimenting with Ranking Theory concepts in places where Bayesian concepts would play a role. This is not a long-term use package and so is likely
+not to be maintained but at the time of writing the package includes a fairly complete implementation of...
 
-
-## Important Note on Examples and Testing
-
-**All example files in the `examples/regression` directory are ports of the original racket code and are used as regression tests.**
-
-- If you add or modify an example/regression file (e.g., `examples/regression/hidden_markov.py`), you must ensure that its output remains consistent with the expected regression tests.
-- Regression tests in `tests/` will run these examples and check their output. If you change the output format or logic, update the corresponding regression test.
-- To add your own examples without affecting tests, use a different filename or directory, or disable regression checks for that file.
-
-This ensures that the core examples remain stable and that changes to the library do not unintentionally break expected behavior.
+- **Ranking Theory Theoretical Foundations** with κ, τ, and conditional ranks 
+- **A C-Representation Framework** with Kern-Isberner's formalism
+- **A Hybrid Integration** combining constraint networks with c-representations
 
 ## Synopsis
 
@@ -29,7 +17,7 @@ This library implements **Ranked Programming** based on Wolfgang Spohn's **Ranki
 
 While probabilistic programming is powerful, not all uncertainty is probabilistic. Some types of uncertainty are better described by distinguishing between what is "normal" and what is "exceptional". For instance, in fault diagnosis, we might know that a component normally works and only exceptionally fails, without knowing the specific probabilities of failure.
 
-**Ranking Theory** provides an alternative: instead of probabilities, it uses integer "ranks" to measure uncertainty as degrees of surprise:
+**Ranking Theory** provides an alternative: instead of probabilities, it uses integer "ranks" to measure uncertainty as degrees of surprise. Qualitatively this resemebles,
 
 - **Rank 0:** Not surprising (a normal occurrence)
 - **Rank 1:** Surprising (an exceptional occurrence)
@@ -38,16 +26,7 @@ While probabilistic programming is powerful, not all uncertainty is probabilisti
 
 ### Ranked Programming
 
-This library implements a programming model based on these principles. Expressions can have ranked choices, which normally return one value (with a rank of 0) but can exceptionally return another (with a rank of 1 or higher). The final rank of a result represents the number of exceptions that had to occur for that result to be produced.
-
-**Advanced Capabilities:**
-- **C-Representation Framework**: Kern-Isberner's formalism for structured knowledge bases
-- **Constraint-Based Reasoning**: SMT-powered constraint solving for ranking networks
-- **Belief Propagation**: Efficient inference in large ranking networks using Shenoy's algorithm
-- **Causal Discovery**: Automatic discovery of causal relationships from ranking data
-- **Hybrid Integration**: Seamless combination of constraint networks and c-representations
-- **Scalable Architecture**: Handles complex networks with message passing and caching
-- **Theoretical Rigor**: Complete implementation of Spohn's Ranking Theory
+This library implements a programming model based on these principles. Expressions can have ranked choices, which normally return one value (with a rank of 0) but can exceptionally return another (with a rank of 1 or higher). 
 
 **Key Features:**
 - **Theoretical Foundation**: Explicit implementation of Spohn's Ranking Theory with κ (disbelief), τ (belief), and conditional ranks
@@ -56,11 +35,9 @@ This library implements a programming model based on these principles. Expressio
 - **Constraint Solving**: SMT-powered constraint reasoning with Z3 integration
 - **C-Representations**: Kern-Isberner's formalism for structured knowledge bases
 - **Lazy Evaluation**: Efficient handling of infinite or large search spaces
-- **Type Safety**: Full type annotations and modern Python support
 - **Comprehensive Testing**: 190+ tests ensuring reliability
-- **Backward Compatibility**: All existing code continues to work unchanged
 
-**Applications:**
+**Potential use cases:** 
 - Fault diagnosis in boolean circuits
 - Spelling correction algorithms
 - Ranking-based Hidden Markov Models
@@ -195,7 +172,7 @@ Ranks can go from 0 to +inf, but using an assumption that a unit of evidence has
 
 ## Causal Reasoning
 
-**NEW**: This library now includes a complete causal reasoning toolkit based on ranking theory:
+This library now includes a complete causal reasoning toolkit based on ranking theory:
 
 ```python
 from ranked_programming.causal_reasoning import CausalReasoner
@@ -243,7 +220,7 @@ causal_matrix = reasoner.pc_algorithm(
 
 ## Belief Propagation
 
-**NEW**: This library now includes efficient belief propagation for large ranking networks using Shenoy's pointwise addition algorithm:
+This library includes efficient belief propagation for large ranking networks using Shenoy's pointwise addition algorithm:
 
 ```python
 from ranked_programming.belief_propagation import BeliefPropagationNetwork
@@ -287,7 +264,7 @@ print("Marginal for A with evidence:", list(marginals_with_evidence['A']))
 
 ## Constraint-Based Reasoning
 
-**NEW**: This library now includes constraint-based reasoning capabilities with SMT integration for solving complex ranking constraints:
+This library now includes constraint-based reasoning capabilities with SMT integration for solving complex ranking constraints:
 
 ```python
 from ranked_programming.constraint_reasoning import ConstraintRankingNetwork
@@ -318,7 +295,7 @@ print("System status:", list(result['System_Status']))
 - **Fallback Support**: Graceful degradation to brute-force when SMT unavailable
 - **Optimization**: Minimizes disbelief ranks in constraint satisfaction
 
-## Examples
+## Some Examples
 
 See the `examples/` directory for full scripts demonstrating various applications:
 
@@ -330,13 +307,13 @@ See the `examples/` directory for full scripts demonstrating various application
 - `localisation.py` — Robot localisation
 - `recursion.py` — Recursion with ranked choices
 - `ranking_network.py` — Simple ranking network
-- `spohn_theory_demo.py` — **NEW**: Complete demonstration of Spohn's theory (κ, τ, conditional ranks)
-- `causal_reasoning_demo.py` — **NEW**: Causal discovery and inference examples
-- `belief_propagation_example.py` — **NEW**: Belief propagation in ranking networks
-- `demo_smt_constraints.py` — **NEW**: SMT-only constraint solving demonstrations
-- `demo_c_representation.py` — **NEW**: C-representation framework demonstrations
-- `causal_boolean_circuit.py` — **NEW**: Causal analysis integration with boolean circuits
-- `causal_ranking_network.py` — **NEW**: Causal analysis integration with ranking networks
+- `spohn_theory_demo.py` — Complete demonstration of Spohn's theory (κ, τ, conditional ranks)
+- `causal_reasoning_demo.py` — Causal discovery and inference examples
+- `belief_propagation_example.py` — Belief propagation in ranking networks
+- `demo_smt_constraints.py` — SMT-only constraint solving demonstrations
+- `demo_c_representation.py` — C-representation framework demonstrations
+- `causal_boolean_circuit.py` — Causal analysis integration with boolean circuits
+- `causal_ranking_network.py` — Causal analysis integration with ranking networks
 - `google_10000_english_no_swears.py` — Large vocabulary demo (uses small subset by default; --full flag loads real data)
 
 Run an example:
@@ -404,17 +381,16 @@ pytest
 - **Hybrid Integration** between constraint networks and c-representations
 - Integration with existing combinators
 - Edge cases and error handling
-- Backward compatibility validation
 
-## License
+## Important Note on Examples and Testing
 
-See [LICENSE](../LICENSE).
+**All example files in the `examples/regression` directory are ports of the original racket code and are used as regression tests.**
 
-## Original Racket Project
+- If you add or modify an example/regression file (e.g., `examples/regression/hidden_markov.py`), you must ensure that its output remains consistent with the expected regression tests.
+- Regression tests in `tests/` will run these examples and check their output. If you change the output format or logic, update the corresponding regression test.
+- To add your own examples without affecting tests, use a different filename or directory, or disable regression checks for that file.
 
-This Python library is a port of the original Racket ranked programming library by Tjitze Rienstra:
-
-- [Ranked Programming (Racket, original)](https://github.com/tjitze/ranked-programming.git)
+This ensures that the core examples remain stable and that changes to the library do not unintentionally break expected behavior.
 
 ## References
 
@@ -430,3 +406,31 @@ This Python library is a port of the original Racket ranked programming library 
 All core combinators in this library always deduplicate values by their hashable identity, keeping only the first occurrence (with the minimal rank) for each hashable value. Unhashable values (such as lists or dicts) are always yielded, even if repeated. This deduplication is always enabled and is not user-configurable. Deduplication is performed lazily as values are generated, so infinite/lazy structures are supported.
 
 For more details, see the Python reference documentation (`docs/python_reference.md`) and the Sphinx API docs.
+
+## License
+
+See [LICENSE](../LICENSE).
+
+## Disclaimer
+
+**USE AT YOUR OWN RISK**
+
+This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
+
+This library is experimental and intended for research and educational purposes. It implements theoretical concepts from Ranking Theory and may contain bugs, incomplete implementations, or conceptual errors. The authors make no guarantees about the correctness, completeness, or suitability of this software for any particular purpose.
+
+**No Warranties:**
+- No warranty of merchantability
+- No warranty of fitness for a particular purpose
+- No warranty of non-infringement
+- No guarantee of accuracy or reliability
+- No guarantee of maintenance or support
+
+**Limitations:**
+- This is experimental software
+- May contain bugs or theoretical errors
+- Not intended for production use without thorough testing
+- Results should be validated independently
+- Use at your own risk
+
+By using this software, you acknowledge that you have read this disclaimer and agree to use the software at your own risk.
