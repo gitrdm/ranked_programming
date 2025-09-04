@@ -20,7 +20,7 @@ cp-sat = [
     "ortools>=9.0.0",
 ]
 maxsat = [
-    "python-sat>=0.1.7",
+    "python-sat>=0.1.7.dev1",
 ]
 asp = [
     "clingo>=5.6.2",
