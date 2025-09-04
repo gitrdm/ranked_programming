@@ -361,14 +361,15 @@ results = causal_network.propagate_beliefs({
 })
 ```
 
-## Conclusion
+## Backends and extras (optional)
 
-Causal reasoning in ranked programming provides powerful tools for understanding complex systems. By combining ranking theory with causal inference methods, you can:
+To enable solver-backed strategies (e.g., CP-SAT) for separating sets and minimal repairs:
 
-- Identify true cause-and-effect relationships
-- Understand intervention effects
-- Discover causal structure from data
-- Make counterfactual predictions
-- Avoid common causal inference pitfalls
+- Install extras:
+  - `pip install -e .[cp-sat]` for OR-Tools CP-SAT
+  - `pip install -e .[maxsat]` for PySAT/MaxSAT (optional)
+  - `pip install -e .[asp]` for clingo/ASP (optional)
+- Run CP-SAT tests (optional):
+  - `ORTOOLS_AVAILABLE=1 pytest -q`
 
-Remember that causal analysis requires careful consideration of assumptions and validation of results. Always combine multiple approaches and consider domain knowledge when interpreting causal relationships.
+The library falls back to greedy strategies when optional backends are not installed. APIs are available under `ranked_programming.causal` (e.g., `CPSATSeparatingSetFinder`, `CPSATMinimalRepair`).

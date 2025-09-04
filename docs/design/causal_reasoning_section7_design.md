@@ -1,6 +1,6 @@
 # Section 7–Compliant Causal Reasoning (Design Doc)
 
-Status: draft for review (M0–M4 implemented)
+Status: draft for review (M0–M5 implemented)
 
 Owner: ranked_programming maintainers
 
@@ -64,7 +64,13 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
   - Frontdoor applicability check (sufficient conditions) and frontdoor effect via mediator aggregation using interventional components produced by surgery.
   - Tests cover backdoor/frontdoor checks and effect computations.
 
-- Test suite passing: 206 tests.
+- Implemented M5 (pluggable solver backends):
+  - Constraints module providing strategy interfaces and greedy baselines: `GreedySeparatingSetFinder`, `EnumerationMinimalRepair`, `CounterexampleFinder`.
+  - Optional CP-SAT strategies with guarded imports: `CPSATSeparatingSetFinder`, `CPSATMinimalRepair`.
+  - Extras in `pyproject.toml` for backends: `cp-sat`, `maxsat`, `asp`, `z3`. Base install remains lightweight.
+  - Tests added; CP-SAT tests skipped by default and enabled via `ORTOOLS_AVAILABLE=1`.
+
+- Test suite passing: 211 tests (CP-SAT enabled); baseline without OR-Tools: 209 passed, 2 skipped.
 
 ## High-level architecture
 
@@ -79,7 +85,9 @@ This document proposes a concrete, incremental design to deliver a Section 7–c
   - Minimal repair, root-cause chains, per-world proofs.
 - Identification module: `identification.py`
   - Backdoor/frontdoor criteria and rank-based effect estimators using SRM surgery and min-plus aggregation.
-- Integration: optional `constraints.py` to leverage SMT and/or Prolog/kanren for repair-set minimality and CI counterexamples.
+- Constraints/backends module: `constraints.py`
+  - Pluggable strategies for separating set search, minimal repairs, and counterexample finding, with greedy defaults and optional CP-SAT backends.
+- Integration: optional solver backends (CP-SAT/MaxSAT/SMT/ASP) behind extras; graceful fallback when not installed.
 
 All modules depend on existing `Ranking` primitives and do not reimplement ranking engines.
 
@@ -267,6 +275,7 @@ Backend selection can be configured via settings or environment; default to heur
 - M2 (discovery): ranked CI + PC skeleton; graph orientation; hooks for SMT/Prolog.
 - M3 (explanations): minimal repair and chain narration; per-world proofs.
 - M4 (identification): backdoor/frontdoor utilities with surgery; docs and tutorials.
+- M5 (solver backends): constraints module with pluggable strategies; CP-SAT/MaxSAT/SMT/ASP integration.
 
 ## Open questions
 

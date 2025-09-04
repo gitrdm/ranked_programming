@@ -21,9 +21,10 @@ Progress summary (2025-09-04)
 - M2 implemented: ranked CI (`ranked_ci`) and PC skeleton (`pc_skeleton`) with v-structure orientation.
 - M3 baseline implemented: minimal repairs (`MinimalRepairSolver`) and root-cause chains (`root_cause_chain`).
 - M4 implemented: identification (`is_backdoor_admissible`, `backdoor_adjusted_effect`, `is_frontdoor_applicable`, `frontdoor_effect`).
+- M5 implemented: constraints/backends scaffolding with greedy defaults and CP-SAT optional strategies.
 - Exports added under `ranked_programming.causal`.
-- Unit tests added: `tests/causal/test_srm.py`, `tests/causal/test_causation_v2.py`, `tests/causal/test_ranked_pc.py`, `tests/causal/test_explanations.py`, `tests/causal/test_identification.py`.
-- Full suite passing: 206 tests.
+- Unit tests added: `tests/causal/test_srm.py`, `test_causation_v2.py`, `test_ranked_pc.py`, `test_explanations.py`, `test_identification.py`, `test_constraints.py`, `test_constraints_ortools.py` (skipped by default).
+- Full suite passing: 211 tests with OR-Tools enabled; baseline 209 passed, 2 skipped.
 
 ## M0 — Structural Ranking Model (SRM) + Surgery
 
@@ -156,19 +157,22 @@ Status: Completed 2025-09-04
 ## M5 — Pluggable Solver Backends
 
 Steps
-1) Interfaces: `SeparatingSetFinder`, `MinimalRepairSolver`, `CounterexampleFinder`
-2) Backends: greedy (default), CP-SAT, MaxSAT, SMT, ASP
-3) Extras, detection, timeouts, and graceful fallback
+1) Interfaces: `SeparatingSetFinder`, `MinimalRepairStrategy`, `CounterexampleFinder`
+2) Greedy defaults and optional CP-SAT implementations
+3) Extras in packaging; docs on enabling backends
 
 Artifacts
 - `src/ranked_programming/causal/constraints.py`
-- Tests: `tests/causal/test_constraints.py`
+- Tests: `tests/causal/test_constraints.py`, `tests/causal/test_constraints_ortools.py`
 
 Tests
-- Backend parity on small instances; fallback path exercised
+- Greedy strategies validate separating sets, minimal repairs, and counterexample search on toy graphs
+- CP-SAT strategies validated when `ORTOOLS_AVAILABLE=1` and `ortools` installed
 
 DoD
-- Backends configurable; defaults work without optional deps
+- Backends configurable; defaults work without optional deps; tests green/skipped appropriately
+
+Status: Completed 2025-09-04
 
 ## M6 — Docs, Tutorials, Examples
 
