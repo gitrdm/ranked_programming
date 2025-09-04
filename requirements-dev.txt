@@ -3,3 +3,6 @@ mypy
 black
 isort
 sphinx
+sphinx-autodoc-typehints
+build
+twine
