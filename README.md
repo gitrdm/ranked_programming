@@ -143,7 +143,9 @@ kappa_B_given_A = ranking.conditional_disbelief(
 ## Bayesian↔Ranking Bridge (intuition)
 
 If you think in probabilities but want the intuition for ranks, a principled bridge is to
-use log-odds “bits” as evidence units. With base 2 (one bit per unit):
+use log-odds “bits” as evidence units. Keep in mind this is just one among an infinite number
+of ways to map between Bayesian/Ranking so this is not definitive, it is just one example.
+With base 2 (one bit per unit):
 
 - From probability to a rank-like measure: k ≈ log2(p/(1−p))
 - From a rank-like measure to probability: p ≈ 1 / (1 + 2^(−k))
